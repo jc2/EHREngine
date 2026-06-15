@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.env
+.venv/
+db.sqlite3
+*.sqlite3
+media/
+static/
+.uv/
+uv.lock

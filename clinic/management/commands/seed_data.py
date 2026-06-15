@@ -1,0 +1,153 @@
+import random
+from datetime import date, time, timedelta
+
+from django.core.management.base import BaseCommand
+
+from clinic.models import (
+    Doctor,
+    DoctorSchedule,
+    InsurancePayer,
+    MedicalDepartment,
+    PatientInsurance,
+)
+
+PAYERS = [
+    ("BlueCross BlueShield", "BCBS"),
+    ("Aetna", "AETNA"),
+    ("UnitedHealth Group", "UHC"),
+    ("Cigna", "CIGNA"),
+    ("Humana", "HUMANA"),
+    ("Kaiser Permanente", "KAISER"),
+    ("Anthem", "ANTHEM"),
+    ("Molina Healthcare", "MOLINA"),
+]
+
+DOCTORS = [
+    ("James", "Wilson", "CARDIOLOGY"),
+    ("Sarah", "Chen", "CARDIOLOGY"),
+    ("Maria", "Rodriguez", "DERMATOLOGY"),
+    ("David", "Kim", "DERMATOLOGY"),
+    ("Robert", "Johnson", "GENERAL_PRACTICE"),
+    ("Emily", "Davis", "GENERAL_PRACTICE"),
+    ("Michael", "Patel", "PEDIATRICS"),
+    ("Jessica", "Thompson", "PEDIATRICS"),
+    ("Daniel", "Martinez", "ORTHOPEDICS"),
+    ("Laura", "Anderson", "ORTHOPEDICS"),
+    ("William", "Lee", "NEUROLOGY"),
+    ("Amanda", "Taylor", "NEUROLOGY"),
+    ("Christopher", "Brown", "GYNECOLOGY"),
+    ("Sophia", "Garcia", "GYNECOLOGY"),
+    ("Andrew", "Nguyen", "OPHTHALMOLOGY"),
+    ("Rachel", "Moore", "OPHTHALMOLOGY"),
+]
+
+SCHEDULE_START_HOUR = 8
+SCHEDULE_END_HOUR = 12
+SLOT_MINUTES = 30
+
+
+class Command(BaseCommand):
+    help = "Seed the database with sample EHR data"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--skip-if-exists",
+            action="store_true",
+            help="Skip seeding if data already exists",
+        )
+
+    def handle(self, *args, **options):
+        if options["skip_if_exists"] and InsurancePayer.objects.exists():
+            self.stdout.write(self.style.WARNING("Data already exists, skipping seed."))
+            return
+
+        self._seed_payers()
+        self._seed_doctors()
+        self._seed_schedules()
+        self._seed_patient_insurance()
+        self.stdout.write(self.style.SUCCESS("Seed completed successfully."))
+
+    def _seed_payers(self):
+        for name, code in PAYERS:
+            InsurancePayer.objects.get_or_create(
+                code=code, defaults={"name": name, "is_active": True}
+            )
+        self.stdout.write(f"  Seeded {len(PAYERS)} insurance payers.")
+
+    def _seed_doctors(self):
+        for i, (first, last, specialty) in enumerate(DOCTORS, start=1):
+            Doctor.objects.get_or_create(
+                license_number=f"MD-{i:04d}",
+                defaults={
+                    "first_name": first,
+                    "last_name": last,
+                    "specialty": specialty,
+                    "is_active": True,
+                },
+            )
+        self.stdout.write(f"  Seeded {len(DOCTORS)} doctors.")
+
+    def _seed_schedules(self):
+        doctors = Doctor.objects.all()
+        today = date.today()
+        count = 0
+
+        for day_offset in range(21):
+            d = today + timedelta(days=day_offset)
+            if d.weekday() >= 5:
+                continue
+
+            for doctor in doctors:
+                for hour in range(SCHEDULE_START_HOUR, SCHEDULE_END_HOUR):
+                    for minute in (0, SLOT_MINUTES):
+                        start = time(hour, minute)
+                        end_minute = minute + SLOT_MINUTES
+                        end_hour = hour + (end_minute // 60)
+                        end_minute = end_minute % 60
+                        end = time(end_hour, end_minute)
+
+                        _, created = DoctorSchedule.objects.get_or_create(
+                            doctor=doctor,
+                            date=d,
+                            start_time=start,
+                            defaults={"end_time": end},
+                        )
+                        if created:
+                            count += 1
+
+        self.stdout.write(f"  Seeded {count} schedule slots.")
+
+    def _seed_patient_insurance(self):
+        payers = list(InsurancePayer.objects.all())
+        today = date.today()
+        types = ["HMO", "PPO"]
+        count = 0
+
+        for i in range(1, 11):
+            patient_id = f"PAT-{i:03d}"
+            num_policies = random.choice([1, 1, 1, 2])
+
+            for _ in range(num_policies):
+                payer = random.choice(payers)
+                months_ago = random.randint(6, 18)
+                start = today - timedelta(days=months_ago * 30)
+
+                if i <= 8:
+                    end = None
+                else:
+                    end = today - timedelta(days=random.randint(10, 90))
+
+                _, created = PatientInsurance.objects.get_or_create(
+                    patient_id=patient_id,
+                    payer=payer,
+                    defaults={
+                        "insurance_type": random.choice(types),
+                        "member_id": f"MBR-{random.randint(100000, 999999)}",
+                        "enrollment_start": start,
+                        "enrollment_end": end,
+                    },
+                )
+                if created:
+                    count += 1
+
+        self.stdout.write(f"  Seeded {count} patient insurance records.")

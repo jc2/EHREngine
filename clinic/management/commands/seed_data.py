@@ -22,6 +22,17 @@ PAYERS = [
     ("Molina Healthcare", "MOLINA"),
 ]
 
+SPECIALTIES = [
+    ("CARDIOLOGY", "Cardiology"),
+    ("DERMATOLOGY", "Dermatology"),
+    ("GENERAL_PRACTICE", "General Practice"),
+    ("PEDIATRICS", "Pediatrics"),
+    ("ORTHOPEDICS", "Orthopedics"),
+    ("NEUROLOGY", "Neurology"),
+    ("GYNECOLOGY", "Gynecology"),
+    ("OPHTHALMOLOGY", "Ophthalmology"),
+]
+
 DOCTORS = [
     ("James", "Wilson", "CARDIOLOGY"),
     ("Sarah", "Chen", "CARDIOLOGY"),
@@ -61,11 +72,19 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Data already exists, skipping seed."))
             return
 
+        self._seed_specialties()
         self._seed_payers()
         self._seed_doctors()
         self._seed_schedules()
         self._seed_patient_insurance()
         self.stdout.write(self.style.SUCCESS("Seed completed successfully."))
+
+    def _seed_specialties(self):
+        for code, name in SPECIALTIES:
+            MedicalDepartment.objects.get_or_create(
+                code=code, defaults={"name": name, "is_active": True}
+            )
+        self.stdout.write(f"  Seeded {len(SPECIALTIES)} medical specialties.")
 
     def _seed_payers(self):
         for name, code in PAYERS:
@@ -75,7 +94,8 @@ class Command(BaseCommand):
         self.stdout.write(f"  Seeded {len(PAYERS)} insurance payers.")
 
     def _seed_doctors(self):
-        for i, (first, last, specialty) in enumerate(DOCTORS, start=1):
+        for i, (first, last, specialty_code) in enumerate(DOCTORS, start=1):
+            specialty = MedicalDepartment.objects.get(code=specialty_code)
             Doctor.objects.get_or_create(
                 license_number=f"MD-{i:04d}",
                 defaults={

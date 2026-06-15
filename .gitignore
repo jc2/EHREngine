@@ -14,3 +14,4 @@ media/
 static/
 .uv/
 uv.lock
+db_data/

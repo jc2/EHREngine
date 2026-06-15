@@ -16,8 +16,8 @@ def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, An
 
     Args:
         patient_id: The external patient identifier (e.g. "PAT-001").
-        payer_id: The numeric ID of the insurance payer to verify against.
-                  Use the Wagtail admin to look up payer IDs, or ask the patient.
+        payer_id: The insurance payer's code (e.g. "CIGNA", "BCBS", "AETNA",
+                  "UHC", "HUMANA", "KAISER", "ANTHEM", "MOLINA") or numeric ID.
 
     Returns:
         A dict with:
@@ -30,11 +30,22 @@ def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, An
     from clinic.models import InsurancePayer, PatientInsurance
 
     try:
-        payer = InsurancePayer.objects.get(pk=payer_id, is_active=True)
-    except (InsurancePayer.DoesNotExist, ValueError):
+        if payer_id.isdigit():
+            payer = InsurancePayer.objects.get(pk=payer_id, is_active=True)
+        else:
+            payer = InsurancePayer.objects.get(
+                code__iexact=payer_id.strip(), is_active=True
+            )
+    except InsurancePayer.DoesNotExist:
+        available = list(
+            InsurancePayer.objects.filter(is_active=True).values_list("code", flat=True)
+        )
         return {
             "eligible": False,
-            "reason": f"Payer with ID '{payer_id}' not found or inactive.",
+            "reason": (
+                f"Payer '{payer_id}' not found or inactive. "
+                f"Available payers: {', '.join(available)}"
+            ),
         }
 
     today = date.today()

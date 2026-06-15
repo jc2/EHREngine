@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EHREngine — Schedule Dashboard</title>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card-bg: #fff;
+            --border: #dee2e6;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --primary: #0d6efd;
+            --success: #198754;
+            --success-light: #d1e7dd;
+            --danger: #dc3545;
+            --danger-light: #f8d7da;
+            --warning-light: #fff3cd;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 1rem; }
+
+        header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+            margin-bottom: 1.5rem;
+        }
+
+        header .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        header h1 { font-size: 1.5rem; font-weight: 700; }
+        header h1 span { color: var(--primary); }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .nav-links a:hover { color: var(--primary); }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .date-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .date-nav a, .date-nav .today-label {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text);
+            background: var(--card-bg);
+            font-size: 0.9rem;
+            transition: background 0.15s;
+        }
+        .date-nav a:hover { background: var(--bg); }
+
+        .date-nav .today-label {
+            font-weight: 600;
+            min-width: 160px;
+            text-align: center;
+        }
+
+        .filter-form select {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: var(--card-bg);
+            cursor: pointer;
+        }
+
+        .legend {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+        .legend-dot.available { background: var(--success-light); border: 1px solid var(--success); }
+        .legend-dot.booked { background: var(--danger-light); border: 1px solid var(--danger); }
+
+        .department {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .department-header {
+            padding: 0.8rem 1.2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .department-header .badge {
+            background: rgba(255,255,255,0.25);
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .doctor-row {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+        .doctor-row:last-child { border-bottom: none; }
+
+        .doctor-info {
+            width: 200px;
+            min-width: 200px;
+            padding: 0.8rem 1rem;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .doctor-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .doctor-license {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .slots-container {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 0.5rem;
+            gap: 0.4rem;
+            flex: 1;
+            align-items: center;
+        }
+
+        .slot {
+            padding: 0.35rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            min-width: 110px;
+            text-align: center;
+            position: relative;
+            cursor: default;
+        }
+
+        .slot.available {
+            background: var(--success-light);
+            color: var(--success);
+            border: 1px solid #a3cfbb;
+        }
+
+        .slot.booked {
+            background: var(--danger-light);
+            color: var(--danger);
+            border: 1px solid #f1aeb5;
+        }
+
+        .slot .time { display: block; }
+
+        .slot .patient-id {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .slot-tooltip {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text);
+            color: #fff;
+            padding: 0.4rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 10;
+            margin-bottom: 4px;
+        }
+        .slot:hover .slot-tooltip { display: block; }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+        .empty-state p { font-size: 1.1rem; }
+
+        .btn-generate {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.9rem;
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .btn-generate:hover { opacity: 0.85; }
+        .btn-generate.btn-sm { font-size: 0.75rem; padding: 0.3rem 0.7rem; }
+        .btn-generate.btn-outline {
+            background: transparent;
+            color: var(--primary);
+        }
+        .btn-generate.btn-outline:hover { background: var(--primary); color: #fff; }
+        .btn-generate.btn-white {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.4);
+        }
+        .btn-generate.btn-white:hover { background: rgba(255,255,255,0.35); }
+
+        .no-slots-state {
+            padding: 1.5rem;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        .no-slots-state p { margin-bottom: 0.8rem; font-size: 0.9rem; }
+
+        .generate-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .doctors-without-slots {
+            padding: 0.5rem 1rem;
+            background: var(--warning-light);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            flex: 1;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .doctor-info { width: 140px; min-width: 140px; }
+            .slot { min-width: 90px; font-size: 0.72rem; }
+            .stats-bar { flex-direction: column; gap: 0.5rem; }
+            .controls { flex-direction: column; align-items: stretch; }
+            .legend { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><span>EHR</span>Engine — Schedule Dashboard</h1>
+            <div class="nav-links">
+                <a href="/admin/">Admin</a>
+                <a href="?date={{ selected_date|date:'Y-m-d' }}">Refresh</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="controls">
+            <div class="date-nav">
+                <a href="?date={{ prev_date|date:'Y-m-d' }}{% if specialty_filter %}&specialty={{ specialty_filter }}{% endif %}">&larr; Prev</a>
+                <span class="today-label">{{ selected_date|date:"l, M d, Y" }}</span>
+                <a href="?date={{ next_date|date:'Y-m-d' }}{% if specialty_filter %}&specialty={{ specialty_filter }}{% endif %}">Next &rarr;</a>
+            </div>
+
+            <form class="filter-form" method="get">
+                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                <select name="specialty" onchange="this.form.submit()">
+                    <option value="">All Specialties</option>
+                    {% for dept in all_specialties %}
+                        <option value="{{ dept.code }}" {% if dept.code == specialty_filter %}selected{% endif %}>{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot available"></div> Available</div>
+                <div class="legend-item"><div class="legend-dot booked"></div> Booked</div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div></div>
+            <form method="post" action="{% url 'generate-schedules' %}">
+                {% csrf_token %}
+                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                <input type="hidden" name="scope" value="all">
+                <button type="submit" class="btn-generate btn-outline">+ Generate All Schedules</button>
+            </form>
+        </div>
+
+        {% if departments %}
+            {% with total_slots=0 booked_slots=0 %}
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <div class="value">{{ departments|length }}</div>
+                    <div class="label">Departments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">{{ total_doctors }}</div>
+                    <div class="label">Doctors on Schedule</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="stats-available">-</div>
+                    <div class="label">Available Slots</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="stats-booked">-</div>
+                    <div class="label">Booked Slots</div>
+                </div>
+            </div>
+            {% endwith %}
+
+            {% for dept in departments %}
+            <div class="department">
+                <div class="department-header">
+                    {{ dept.name }}
+                    {% if dept.has_slots %}
+                        <span class="badge">{{ dept.doctors|length }} doctor{{ dept.doctors|length|pluralize }}</span>
+                    {% else %}
+                        <form method="post" action="{% url 'generate-schedules' %}" style="margin: 0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                            <input type="hidden" name="scope" value="specialty">
+                            <input type="hidden" name="scope_id" value="{{ dept.code }}">
+                            <button type="submit" class="btn-generate btn-white btn-sm">+ Generate Slots</button>
+                        </form>
+                    {% endif %}
+                </div>
+
+                {% if dept.has_slots %}
+                    {% for doc_data in dept.doctors %}
+                    <div class="doctor-row">
+                        <div class="doctor-info">
+                            <div class="doctor-name">Dr. {{ doc_data.doctor.first_name }} {{ doc_data.doctor.last_name }}</div>
+                            <div class="doctor-license">{{ doc_data.doctor.license_number }}</div>
+                        </div>
+                        <div class="slots-container">
+                            {% for slot_data in doc_data.slots %}
+                            <div class="slot {% if slot_data.is_booked %}booked{% else %}available{% endif %}">
+                                <span class="time">{{ slot_data.slot.start_time|time:"H:i" }} - {{ slot_data.slot.end_time|time:"H:i" }}</span>
+                                {% if slot_data.is_booked %}
+                                    <span class="patient-id">{{ slot_data.appointment.patient_id }}</span>
+                                    <div class="slot-tooltip">
+                                        Patient: {{ slot_data.appointment.patient_id }} | Status: {{ slot_data.appointment.get_status_display }}
+                                    </div>
+                                {% else %}
+                                    <div class="slot-tooltip">Available for booking</div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if dept.doctors_without_slots %}
+                    <div class="doctors-without-slots">
+                        <span>Without schedules:
+                            {% for doc in dept.doctors_without_slots %}
+                                Dr. {{ doc.last_name }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </span>
+                        <div class="generate-actions">
+                            {% for doc in dept.doctors_without_slots %}
+                            <form method="post" action="{% url 'generate-schedules' %}" style="margin: 0; display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                                <input type="hidden" name="scope" value="doctor">
+                                <input type="hidden" name="scope_id" value="{{ doc.pk }}">
+                                <button type="submit" class="btn-generate btn-outline btn-sm">+ Dr. {{ doc.last_name }}</button>
+                            </form>
+                            {% endfor %}
+                            <form method="post" action="{% url 'generate-schedules' %}" style="margin: 0; display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                                <input type="hidden" name="scope" value="specialty">
+                                <input type="hidden" name="scope_id" value="{{ dept.code }}">
+                                <button type="submit" class="btn-generate btn-sm">+ All {{ dept.name }}</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                {% else %}
+                    <div class="no-slots-state">
+                        <p>No schedules for this date.</p>
+                        <div class="generate-actions">
+                            <form method="post" action="{% url 'generate-schedules' %}" style="margin: 0;">
+                                {% csrf_token %}
+                                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                                <input type="hidden" name="scope" value="specialty">
+                                <input type="hidden" name="scope_id" value="{{ dept.code }}">
+                                <button type="submit" class="btn-generate">+ Generate All {{ dept.name }} Slots</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <p>No schedules found for {{ selected_date|date:"M d, Y" }}.</p>
+                <p style="font-size: 0.85rem; margin-top: 0.5rem;">This might be a weekend or no doctor schedules have been created for this date.</p>
+                <form method="post" action="{% url 'generate-schedules' %}" style="margin-top: 1rem;">
+                    {% csrf_token %}
+                    <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                    <input type="hidden" name="scope" value="all">
+                    <button type="submit" class="btn-generate">+ Generate All Schedules</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const available = document.querySelectorAll('.slot.available').length;
+            const booked = document.querySelectorAll('.slot.booked').length;
+            const elAvail = document.getElementById('stats-available');
+            const elBooked = document.getElementById('stats-booked');
+            if (elAvail) elAvail.textContent = available;
+            if (elBooked) elBooked.textContent = booked;
+        });
+    </script>
+</body>
+</html>

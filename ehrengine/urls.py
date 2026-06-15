@@ -1,16 +1,14 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
-from wagtail import urls as wagtail_urls
-from wagtail.admin import urls as wagtailadmin_urls
-from wagtail.documents import urls as wagtaildocs_urls
+from django.urls import path
+
+from clinic.views import generate_schedules, schedule_dashboard
 
 urlpatterns = [
-    path("django-admin/", admin.site.urls),
-    path("admin/", include(wagtailadmin_urls)),
-    path("documents/", include(wagtaildocs_urls)),
-    path("", include(wagtail_urls)),
+    path("", schedule_dashboard, name="schedule-dashboard"),
+    path("generate-schedules/", generate_schedules, name="generate-schedules"),
+    path("admin/", admin.site.urls),
 ]
 
 if settings.DEBUG:

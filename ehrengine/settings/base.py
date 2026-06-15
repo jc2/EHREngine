@@ -1,6 +1,7 @@
 import os
 
 import dj_database_url
+from django.urls import reverse_lazy
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIR = os.path.dirname(PROJECT_DIR)
@@ -8,21 +9,8 @@ BASE_DIR = os.path.dirname(PROJECT_DIR)
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "insecure-dev-key-change-in-production")
 
 INSTALLED_APPS = [
-    "home",
-    "clinic",
-    "wagtail.contrib.forms",
-    "wagtail.contrib.redirects",
-    "wagtail.embeds",
-    "wagtail.sites",
-    "wagtail.users",
-    "wagtail.snippets",
-    "wagtail.documents",
-    "wagtail.images",
-    "wagtail.search",
-    "wagtail.admin",
-    "wagtail",
-    "modelcluster",
-    "taggit",
+    "unfold",
+    "unfold.contrib.filters",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -30,6 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
+    "clinic",
 ]
 
 MIDDLEWARE = [
@@ -40,7 +29,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
 
 ROOT_URLCONF = "ehrengine.urls"
@@ -85,5 +74,78 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-WAGTAIL_SITE_NAME = "EHREngine"
-WAGTAILADMIN_BASE_URL = "http://localhost:8000"
+UNFOLD = {
+    "SITE_TITLE": "EHREngine",
+    "SITE_HEADER": "EHREngine",
+    "SITE_SYMBOL": "medical_services",
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Scheduling",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Appointments",
+                        "icon": "calendar_month",
+                        "link": reverse_lazy("admin:clinic_appointment_changelist"),
+                    },
+                    {
+                        "title": "Doctor Schedules",
+                        "icon": "schedule",
+                        "link": reverse_lazy("admin:clinic_doctorschedule_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": "Clinic",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Doctors",
+                        "icon": "group",
+                        "link": reverse_lazy("admin:clinic_doctor_changelist"),
+                    },
+                    {
+                        "title": "Specialties",
+                        "icon": "local_hospital",
+                        "link": reverse_lazy("admin:clinic_medicaldepartment_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": "Insurance",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Insurance Payers",
+                        "icon": "assured_workload",
+                        "link": reverse_lazy("admin:clinic_insurancepayer_changelist"),
+                    },
+                    {
+                        "title": "Patient Insurance",
+                        "icon": "badge",
+                        "link": reverse_lazy("admin:clinic_patientinsurance_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": "Authentication",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Users",
+                        "icon": "person",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                    },
+                    {
+                        "title": "Groups",
+                        "icon": "groups",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+}

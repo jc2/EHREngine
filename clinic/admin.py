@@ -1,59 +1,61 @@
-from wagtail.snippets.models import register_snippet
-from wagtail.snippets.views.snippets import SnippetViewSet
+from django.contrib import admin
+from unfold.admin import ModelAdmin
 
-from .models import Appointment, Doctor, DoctorSchedule, InsurancePayer, PatientInsurance
+from .models import (
+    Appointment,
+    Doctor,
+    DoctorSchedule,
+    InsurancePayer,
+    MedicalDepartment,
+    PatientInsurance,
+)
 
 
-class InsurancePayerViewSet(SnippetViewSet):
-    model = InsurancePayer
-    icon = "doc-full"
-    menu_label = "Insurance Payers"
-    menu_name = "insurance_payers"
+@admin.register(MedicalDepartment)
+class MedicalDepartmentAdmin(ModelAdmin):
     list_display = ["name", "code", "is_active"]
+    list_display_links = ["name"]
     search_fields = ["name", "code"]
+    list_filter = ["is_active"]
 
 
-class PatientInsuranceViewSet(SnippetViewSet):
-    model = PatientInsurance
-    icon = "user"
-    menu_label = "Patient Insurance"
-    menu_name = "patient_insurance"
-    list_display = ["patient_id", "payer", "insurance_type", "enrollment_start", "enrollment_end"]
+@admin.register(InsurancePayer)
+class InsurancePayerAdmin(ModelAdmin):
+    list_display = ["name", "code", "is_active", "created_at"]
+    list_display_links = ["name"]
+    search_fields = ["name", "code"]
+    list_filter = ["is_active"]
+
+
+@admin.register(PatientInsurance)
+class PatientInsuranceAdmin(ModelAdmin):
+    list_display = ["patient_id", "payer", "insurance_type", "member_id", "enrollment_start", "enrollment_end"]
+    list_display_links = ["patient_id"]
     list_filter = ["insurance_type", "payer"]
     search_fields = ["patient_id", "member_id"]
 
 
-class DoctorViewSet(SnippetViewSet):
-    model = Doctor
-    icon = "group"
-    menu_label = "Doctors"
-    menu_name = "doctors"
-    list_display = ["__str__", "specialty", "license_number", "is_active"]
+@admin.register(Doctor)
+class DoctorAdmin(ModelAdmin):
+    list_display = ["first_name", "last_name", "specialty", "license_number", "is_active"]
+    list_display_links = ["first_name", "last_name"]
     list_filter = ["specialty", "is_active"]
     search_fields = ["first_name", "last_name", "license_number"]
 
 
-class DoctorScheduleViewSet(SnippetViewSet):
-    model = DoctorSchedule
-    icon = "date"
-    menu_label = "Doctor Schedules"
-    menu_name = "doctor_schedules"
+@admin.register(DoctorSchedule)
+class DoctorScheduleAdmin(ModelAdmin):
     list_display = ["doctor", "date", "start_time", "end_time"]
+    list_display_links = ["doctor"]
     list_filter = ["date", "doctor__specialty"]
+    search_fields = ["doctor__last_name"]
+    autocomplete_fields = ["doctor"]
 
 
-class AppointmentViewSet(SnippetViewSet):
-    model = Appointment
-    icon = "calendar-alt"
-    menu_label = "Appointments"
-    menu_name = "appointments"
-    list_display = ["patient_id", "doctor", "status", "created_at"]
+@admin.register(Appointment)
+class AppointmentAdmin(ModelAdmin):
+    list_display = ["patient_id", "doctor", "schedule_slot", "status", "notes", "created_at"]
+    list_display_links = ["patient_id"]
     list_filter = ["status", "doctor__specialty"]
     search_fields = ["patient_id"]
-
-
-register_snippet(InsurancePayerViewSet)
-register_snippet(PatientInsuranceViewSet)
-register_snippet(DoctorViewSet)
-register_snippet(DoctorScheduleViewSet)
-register_snippet(AppointmentViewSet)
+    autocomplete_fields = ["doctor"]

@@ -42,9 +42,16 @@ def schedule_appointment(
         return {"success": False, "error": f"Invalid time format '{time}'. Use HH:MM (24h)."}
 
     try:
-        doctor = Doctor.objects.get(pk=doctor_id, is_active=True)
-    except (Doctor.DoesNotExist, ValueError):
-        return {"success": False, "error": f"Doctor with ID '{doctor_id}' not found or inactive."}
+        if doctor_id.isdigit():
+            doctor = Doctor.objects.get(pk=doctor_id, is_active=True)
+        else:
+            doctor = Doctor.objects.get(last_name__iexact=doctor_id.strip(), is_active=True)
+    except Doctor.DoesNotExist:
+        return {"success": False, "error": f"Doctor '{doctor_id}' not found or inactive."}
+    except Doctor.MultipleObjectsReturned:
+        matches = Doctor.objects.filter(last_name__iexact=doctor_id.strip(), is_active=True)
+        options = ", ".join(f"{d.pk} (Dr. {d.first_name} {d.last_name})" for d in matches)
+        return {"success": False, "error": f"Multiple doctors match '{doctor_id}'. Use ID: {options}"}
 
     try:
         slot = DoctorSchedule.objects.get(
@@ -87,7 +94,7 @@ def schedule_appointment(
             "patient_id": patient_id,
             "doctor_id": str(doctor.pk),
             "doctor_name": f"Dr. {doctor.first_name} {doctor.last_name}",
-            "specialty": doctor.get_specialty_display(),
+            "specialty": doctor.specialty.name,
             "date": appt_date.isoformat(),
             "start_time": slot.start_time.strftime("%H:%M"),
             "end_time": slot.end_time.strftime("%H:%M"),

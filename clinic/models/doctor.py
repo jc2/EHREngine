@@ -6,7 +6,9 @@ from .department import MedicalDepartment
 class Doctor(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    specialty = models.CharField(max_length=30, choices=MedicalDepartment.choices)
+    specialty = models.ForeignKey(
+        MedicalDepartment, on_delete=models.PROTECT, related_name="doctors"
+    )
     license_number = models.CharField(max_length=20, unique=True)
     is_active = models.BooleanField(default=True)
 
@@ -14,7 +16,7 @@ class Doctor(models.Model):
         ordering = ["last_name", "first_name"]
 
     def __str__(self):
-        return f"Dr. {self.first_name} {self.last_name} ({self.get_specialty_display()})"
+        return f"Dr. {self.first_name} {self.last_name} ({self.specialty.name})"
 
 
 class DoctorSchedule(models.Model):

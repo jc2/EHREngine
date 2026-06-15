@@ -1,12 +1,13 @@
 from django.db import models
 
 
-class MedicalDepartment(models.TextChoices):
-    CARDIOLOGY = "CARDIOLOGY", "Cardiology"
-    DERMATOLOGY = "DERMATOLOGY", "Dermatology"
-    GENERAL_PRACTICE = "GENERAL_PRACTICE", "General Practice"
-    PEDIATRICS = "PEDIATRICS", "Pediatrics"
-    ORTHOPEDICS = "ORTHOPEDICS", "Orthopedics"
-    NEUROLOGY = "NEUROLOGY", "Neurology"
-    GYNECOLOGY = "GYNECOLOGY", "Gynecology"
-    OPHTHALMOLOGY = "OPHTHALMOLOGY", "Ophthalmology"
+class MedicalDepartment(models.Model):
+    code = models.CharField(max_length=30, unique=True)
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name

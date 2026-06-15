@@ -2,18 +2,6 @@ from datetime import date as date_type
 from typing import Any
 
 
-VALID_SPECIALTIES = [
-    "CARDIOLOGY",
-    "DERMATOLOGY",
-    "GENERAL_PRACTICE",
-    "PEDIATRICS",
-    "ORTHOPEDICS",
-    "NEUROLOGY",
-    "GYNECOLOGY",
-    "OPHTHALMOLOGY",
-]
-
-
 def check_provider_availability(
     medical_specialty: str, date: str
 ) -> dict[str, Any]:
@@ -23,10 +11,11 @@ def check_provider_availability(
     08:00 to 12:00 in 30-minute blocks. Only slots without an existing
     appointment (SCHEDULED or COMPLETED) are returned.
 
+    Use list_medical_specialties first if you don't know the valid codes.
+
     Args:
-        medical_specialty: One of the following specialties (case-insensitive):
-            CARDIOLOGY, DERMATOLOGY, GENERAL_PRACTICE, PEDIATRICS,
-            ORTHOPEDICS, NEUROLOGY, GYNECOLOGY, OPHTHALMOLOGY.
+        medical_specialty: The specialty code (e.g. "CARDIOLOGY") or name
+            (e.g. "Cardiology"). Case-insensitive.
         date: The date to check, in YYYY-MM-DD format (e.g. "2026-06-15").
 
     Returns:
@@ -38,18 +27,26 @@ def check_provider_availability(
           date, start_time, end_time. Use doctor_id and start_time when
           calling schedule_appointment.
     """
-    from clinic.models import DoctorSchedule
+    from clinic.models import DoctorSchedule, MedicalDepartment
 
-    specialty = medical_specialty.strip().upper()
-    if specialty not in VALID_SPECIALTIES:
+    query = medical_specialty.strip()
+    dept = (
+        MedicalDepartment.objects.filter(code__iexact=query, is_active=True).first()
+        or MedicalDepartment.objects.filter(name__iexact=query, is_active=True).first()
+    )
+
+    if not dept:
+        available_codes = list(
+            MedicalDepartment.objects.filter(is_active=True).values_list("code", flat=True)
+        )
         return {
             "specialty": medical_specialty,
             "date": date,
             "total_available": 0,
             "available_slots": [],
             "error": (
-                f"Invalid specialty '{medical_specialty}'. "
-                f"Must be one of: {', '.join(VALID_SPECIALTIES)}"
+                f"Specialty '{medical_specialty}' not found. "
+                f"Available: {', '.join(available_codes)}"
             ),
         }
 
@@ -57,7 +54,7 @@ def check_provider_availability(
         check_date = date_type.fromisoformat(date)
     except ValueError:
         return {
-            "specialty": specialty,
+            "specialty": dept.code,
             "date": date,
             "total_available": 0,
             "available_slots": [],
@@ -66,12 +63,12 @@ def check_provider_availability(
 
     open_slots = (
         DoctorSchedule.objects.filter(
-            doctor__specialty=specialty,
+            doctor__specialty=dept,
             doctor__is_active=True,
             date=check_date,
         )
         .exclude(appointment__status__in=["SCHEDULED", "COMPLETED"])
-        .select_related("doctor")
+        .select_related("doctor", "doctor__specialty")
         .order_by("start_time", "doctor__last_name")
     )
 
@@ -79,7 +76,7 @@ def check_provider_availability(
         {
             "doctor_id": str(slot.doctor.pk),
             "doctor_name": f"Dr. {slot.doctor.first_name} {slot.doctor.last_name}",
-            "specialty": slot.doctor.get_specialty_display(),
+            "specialty": slot.doctor.specialty.name,
             "date": slot.date.isoformat(),
             "start_time": slot.start_time.strftime("%H:%M"),
             "end_time": slot.end_time.strftime("%H:%M"),
@@ -88,7 +85,7 @@ def check_provider_availability(
     ]
 
     return {
-        "specialty": specialty,
+        "specialty": dept.code,
         "date": check_date.isoformat(),
         "total_available": len(available),
         "available_slots": available,

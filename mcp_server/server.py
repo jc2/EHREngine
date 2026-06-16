@@ -8,18 +8,24 @@ from .tools.catalog import list_insurance_payers as _payers, list_medical_specia
 from .tools.insurance import verify_insurance_eligibility as _verify
 from .tools.availability import check_provider_availability as _check
 from .tools.scheduling import schedule_appointment as _schedule
+from .tools.refills import list_patient_prescriptions as _list_rx, request_medication_refill as _refill
 
 mcp = FastMCP(
     "EHREngine",
     instructions=(
-        "EHR/PMS system for managing patient appointments. "
+        "EHR/PMS system for managing patient appointments and medication refills. "
         "Typical workflow: "
         "1) list_insurance_payers / list_medical_specialties — discover available options. "
         "2) verify_insurance_eligibility — check patient has active coverage. "
         "3) check_provider_availability — find open slots for a specialty. "
         "4) schedule_appointment — book the slot. "
         "HMO patients need a referral from their PCP before seeing a specialist. "
-        "PPO patients can see specialists directly."
+        "PPO patients can see specialists directly. "
+        "For medication refills: "
+        "1) list_patient_prescriptions — find the prescription_id for the patient. "
+        "2) request_medication_refill — process the refill request. "
+        "Controlled substances, expired prescriptions, and prescriptions with no "
+        "refills remaining require provider review (NEEDS_PROVIDER_REVIEW)."
     ),
 )
 
@@ -45,3 +51,5 @@ mcp.tool()(_traced_async_tool(_specialties))
 mcp.tool()(_traced_async_tool(_verify))
 mcp.tool()(_traced_async_tool(_check))
 mcp.tool()(_traced_async_tool(_schedule))
+mcp.tool()(_traced_async_tool(_list_rx))
+mcp.tool()(_traced_async_tool(_refill))

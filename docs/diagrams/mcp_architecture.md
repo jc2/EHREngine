@@ -1,75 +1,54 @@
-# EHREngine MCP Architecture & Workflow
-
-## Diagram
+# Architecture of EHREngine MCP System
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Client as MCP Client (Agent)
-    participant Server as FastMCP Server (EHREngine)
-    participant Tools as MCP Tools
-    participant ORM as Django ORM / Models
-    participant DB as PostgreSQL DB
+C4Component
+    title Architecture of EHREngine MCP System
+    
+    Person(llm, "LLM Client", "Interacts with standard MCP protocol")
+    
+    System_Boundary(mcp_system, "FastMCP Server") {
+        Component(server, "FastMCP App", "mcp_server/server.py", "Registers tools and handles MCP Protocol")
+        
+        Container_Boundary(tools_suite, "MCP Tools Suite") {
+            Component(availability, "availability.py", "Availability", "check_provider_availability")
+            Component(catalog, "catalog.py", "Catalog", "list_insurance_payers, list_medical_specialties")
+            Component(insurance, "insurance.py", "Insurance", "verify_insurance_eligibility")
+            Component(refills, "refills.py", "Refills", "list_patient_prescriptions, request_medication_refill")
+            Component(scheduling, "scheduling.py", "Scheduling", "schedule_appointment")
+        }
+    }
+    
+    System_Boundary(django, "Django Application (clinic)") {
+        Component(orm, "Django ORM Models", "clinic.models", "Appointment, Doctor, InsurancePayer, Prescription, etc.")
+    }
+    
+    SystemDb(db, "PostgreSQL Database", "db_data", "Stores all EHR state")
+    
+    Rel(llm, server, "Calls tools via MCP Protocol", "JSON-RPC")
+    
+    Rel(server, availability, "Dispatches mapped tools")
+    Rel(server, catalog, "Dispatches mapped tools")
+    Rel(server, insurance, "Dispatches mapped tools")
+    Rel(server, refills, "Dispatches mapped tools")
+    Rel(server, scheduling, "Dispatches mapped tools")
 
-    Client->>Server: Call list_medical_specialties()
-    Server->>Tools: Invoke _traced_async_tool(_specialties)
-    Tools->>ORM: Query MedicalDepartment
-    ORM->>DB: SELECT departments
-    DB-->>ORM: Return records
-    ORM-->>Tools: Model instances
-    Tools-->>Server: Return specialties (dict)
-    Server-->>Client: JSON Response (Specialties)
+    Rel(availability, orm, "Fetches/Updates State (sync-to-async)")
+    Rel(catalog, orm, "Fetches/Updates State (sync-to-async)")
+    Rel(insurance, orm, "Fetches/Updates State (sync-to-async)")
+    Rel(refills, orm, "Fetches/Updates State (sync-to-async)")
+    Rel(scheduling, orm, "Fetches/Updates State (sync-to-async)")
 
-    Client->>Server: Call verify_insurance_eligibility(patient, payer)
-    Server->>Tools: Invoke _traced_async_tool(_verify)
-    Tools->>ORM: Query PatientInsurance
-    ORM->>DB: SELECT active policies
-    DB-->>ORM: Return records
-    ORM-->>Tools: Eligibility result (HMO/PPO)
-    Tools-->>Server: Return eligibility (dict)
-    Server-->>Client: JSON Response (Eligibility)
-
-    Client->>Server: Call check_provider_availability(specialty, date)
-    Server->>Tools: Invoke _traced_async_tool(_check)
-    Tools->>ORM: Query DoctorSchedule <br> (exclude SCHEDULED/COMPLETED)
-    ORM->>DB: SELECT available slots
-    DB-->>ORM: Return records
-    ORM-->>Tools: Formatted open slots
-    Tools-->>Server: Return slots (dict)
-    Server-->>Client: JSON Response (Availability)
-
-    Client->>Server: Call schedule_appointment(patient, doctor, date, time)
-    Server->>Tools: Invoke _traced_async_tool(_schedule)
-    Tools->>ORM: Appointment.objects.create(...)
-    ORM->>DB: INSERT INTO clinic_appointment
-    DB-->>ORM: Success / IntegrityError
-    ORM-->>Tools: Appointment tracking
-    Tools-->>Server: Return booking confirmation
-    Server-->>Client: JSON Response (Success)
+    Rel(orm, db, "SQL Queries")
 ```
 
 ## Step-by-Step Code References
 
-*   **FastMCP Server (EHREngine)**
-    *   File Path: `mcp_server/server.py lines 12-43`
-    *   Explanation: This is the core entry point of the FastMCP application. The server initializes here, logs with `logfire` through `_traced_async_tool`, and exposes four main interactive tools bound securely.
-
-*   **Call list_medical_specialties() / Invoke _traced_async_tool(_specialties)**
-    *   File Path: `mcp_server/tools/catalog.py lines 30-59`
-    *   Explanation: The MCP Client searches for available medical specialties in the system. The Django ORM queries `MedicalDepartment` and calculates active doctor counts dynamically. 
-
-*   **Call verify_insurance_eligibility(patient, payer) / Invoke _traced_async_tool(_verify)**
-    *   File Path: `mcp_server/tools/insurance.py lines 6-76`
-    *   Explanation: Validates whether the given patient has active policy terms covering the appointment. The ORM queries `PatientInsurance` enforcing that coverage is active (`enrollment_start` & `enrollment_end`), and returns if it's "HMO" or "PPO" to inform the Agent about referral needs.
-
-*   **Call check_provider_availability(specialty, date) / Invoke _traced_async_tool(_check)**
-    *   File Path: `mcp_server/tools/availability.py lines 5-78`
-    *   Explanation: Looks for empty slots. The system queries `DoctorSchedule` ensuring `appointment__status` excludes `SCHEDULED` and `COMPLETED`. Retrieves open schedule records for formatting.
-
-*   **Call schedule_appointment(...) / Invoke _traced_async_tool(_schedule)**
-    *   File Path: `mcp_server/tools/scheduling.py lines 4-96`
-    *   Explanation: Completes the transaction. The tool fetches the exact `DoctorSchedule` slot and, protecting against race conditions via DB `IntegrityError` constraints (`clinic.models.Appointment`), inserts the record.
-
-*   **Django ORM / Models & PostgreSQL DB Interaction**
-    *   File Path: `pyproject.toml lines 8-9` and `clinic/models/` definitions
-    *   Explanation: Underlying connection management using `psycopg2-binary` binding Django's standard Object-Relational Mapper seamlessly into standard PostgreSQL. Data interactions throughout flow down to this layer automatically.
+- **LLM Client**: Represents any agent resolving the instructions mapped in `mcp_server/server.py lines 20-33`.
+- **FastMCP App**: Declared in `mcp_server/server.py line 19`. Bootstrapping and tool injection handlers (`_traced_async_tool`) occur in `mcp_server/server.py lines 35-50`.
+- **availability.py**: Registered via FastMCP sync-wrapper on `mcp_server/server.py line 42`.
+- **catalog.py**: Tool mappings initialized on `mcp_server/server.py lines 39-40`.
+- **insurance.py**: Component injection tracked on `mcp_server/server.py line 41`.
+- **refills.py**: Functions exposed endpoints mapping onto `mcp_server/server.py lines 44-45`.
+- **scheduling.py**: System terminal execution point registered via `mcp_server/server.py line 43`.
+- **Django ORM Models**: Underlying model state manipulated through querysets linked in tool implementations via local application `clinic.models`.
+- **PostgreSQL Database**: Configured SQL persistence layer managed natively backing Python's execution logic.

@@ -7,7 +7,10 @@ from .models import (
     DoctorSchedule,
     InsurancePayer,
     MedicalDepartment,
+    Medication,
     PatientInsurance,
+    Prescription,
+    RefillRequest,
 )
 
 
@@ -59,3 +62,32 @@ class AppointmentAdmin(ModelAdmin):
     list_filter = ["status", "doctor__specialty"]
     search_fields = ["patient_id"]
     autocomplete_fields = ["doctor"]
+
+
+@admin.register(Medication)
+class MedicationAdmin(ModelAdmin):
+    list_display = ["name", "strength", "form", "is_controlled_substance"]
+    list_display_links = ["name"]
+    search_fields = ["name"]
+    list_filter = ["form", "is_controlled_substance"]
+
+
+@admin.register(Prescription)
+class PrescriptionAdmin(ModelAdmin):
+    list_display = [
+        "id", "patient_id", "medication", "prescriber", "sig", "quantity",
+        "refills_authorized", "refills_remaining", "status", "date_written",
+        "expiration_date", "pharmacy",
+    ]
+    list_display_links = ["id"]
+    search_fields = ["medication__name", "patient_id"]
+    list_filter = ["status"]
+    autocomplete_fields = ["medication", "prescriber"]
+
+
+@admin.register(RefillRequest)
+class RefillRequestAdmin(ModelAdmin):
+    list_display = ["id", "prescription", "requested_at", "status", "decision_reason", "processed_at"]
+    list_display_links = ["id"]
+    list_filter = ["status"]
+    autocomplete_fields = ["prescription"]

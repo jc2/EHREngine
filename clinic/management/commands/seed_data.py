@@ -8,7 +8,9 @@ from clinic.models import (
     DoctorSchedule,
     InsurancePayer,
     MedicalDepartment,
+    Medication,
     PatientInsurance,
+    Prescription,
 )
 
 PAYERS = [
@@ -77,6 +79,8 @@ class Command(BaseCommand):
         self._seed_doctors()
         self._seed_schedules()
         self._seed_patient_insurance()
+        self._seed_medications()
+        self._seed_prescriptions()
         self.stdout.write(self.style.SUCCESS("Seed completed successfully."))
 
     def _seed_specialties(self):
@@ -171,3 +175,106 @@ class Command(BaseCommand):
                     count += 1
 
         self.stdout.write(f"  Seeded {count} patient insurance records.")
+
+    def _seed_medications(self):
+        meds = [
+            ("Lisinopril", "10 mg", "TABLET", False),
+            ("Metformin", "500 mg", "TABLET", False),
+            ("Alprazolam", "0.5 mg", "TABLET", True),
+            ("Atorvastatin", "20 mg", "TABLET", False),
+        ]
+        for name, strength, form, controlled in meds:
+            Medication.objects.get_or_create(
+                name=name,
+                strength=strength,
+                defaults={"form": form, "is_controlled_substance": controlled},
+            )
+        self.stdout.write(f"  Seeded {len(meds)} medications.")
+
+    def _seed_prescriptions(self):
+        today = date.today()
+        prescriber = Doctor.objects.filter(is_active=True).first()
+        if not prescriber:
+            self.stdout.write(self.style.WARNING("  No active doctor found; skipping prescriptions."))
+            return
+
+        lisinopril = Medication.objects.get(name="Lisinopril", strength="10 mg")
+        metformin = Medication.objects.get(name="Metformin", strength="500 mg")
+        alprazolam = Medication.objects.get(name="Alprazolam", strength="0.5 mg")
+        atorvastatin = Medication.objects.get(name="Atorvastatin", strength="20 mg")
+
+        prescriptions = [
+            {
+                "patient_id": "PAT-001",
+                "medication": lisinopril,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth daily",
+                "quantity": 30,
+                "refills_authorized": 3,
+                "refills_remaining": 3,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=30),
+                "expiration_date": today + timedelta(days=335),
+                "pharmacy": "CVS Pharmacy #1234",
+            },
+            {
+                "patient_id": "PAT-001",
+                "medication": metformin,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth twice daily with meals",
+                "quantity": 60,
+                "refills_authorized": 3,
+                "refills_remaining": 0,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=90),
+                "expiration_date": today + timedelta(days=275),
+                "pharmacy": "CVS Pharmacy #1234",
+            },
+            {
+                "patient_id": "PAT-001",
+                "medication": alprazolam,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth as needed for anxiety",
+                "quantity": 30,
+                "refills_authorized": 2,
+                "refills_remaining": 2,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=15),
+                "expiration_date": today + timedelta(days=350),
+                "pharmacy": "Walgreens #5678",
+            },
+            {
+                "patient_id": "PAT-001",
+                "medication": atorvastatin,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth at bedtime",
+                "quantity": 30,
+                "refills_authorized": 5,
+                "refills_remaining": 1,
+                "status": "EXPIRED",
+                "date_written": today - timedelta(days=400),
+                "expiration_date": today - timedelta(days=35),
+                "pharmacy": "CVS Pharmacy #1234",
+            },
+        ]
+
+        count = 0
+        for rx in prescriptions:
+            _, created = Prescription.objects.get_or_create(
+                patient_id=rx["patient_id"],
+                medication=rx["medication"],
+                defaults={
+                    "prescriber": rx["prescriber"],
+                    "sig": rx["sig"],
+                    "quantity": rx["quantity"],
+                    "refills_authorized": rx["refills_authorized"],
+                    "refills_remaining": rx["refills_remaining"],
+                    "status": rx["status"],
+                    "date_written": rx["date_written"],
+                    "expiration_date": rx["expiration_date"],
+                    "pharmacy": rx["pharmacy"],
+                },
+            )
+            if created:
+                count += 1
+        self.stdout.write(f"  Seeded {count} prescriptions.")

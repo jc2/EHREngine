@@ -119,6 +119,27 @@ UNFOLD = {
                 ],
             },
             {
+                "title": "Pharmacy",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Medications",
+                        "icon": "medication",
+                        "link": reverse_lazy("admin:clinic_medication_changelist"),
+                    },
+                    {
+                        "title": "Prescriptions",
+                        "icon": "prescriptions",
+                        "link": reverse_lazy("admin:clinic_prescription_changelist"),
+                    },
+                    {
+                        "title": "Refill Requests",
+                        "icon": "replay",
+                        "link": reverse_lazy("admin:clinic_refillrequest_changelist"),
+                    },
+                ],
+            },
+            {
                 "title": "Insurance",
                 "separator": True,
                 "items": [

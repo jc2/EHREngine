@@ -8,9 +8,10 @@ django.setup()
 from django.core.asgi import get_asgi_application
 
 from mcp_server.server import mcp
+from mcp_server.auth import PatientAuthMiddleware
 
 django_app = get_asgi_application()
-mcp_app = mcp.streamable_http_app()
+mcp_app = PatientAuthMiddleware(mcp.streamable_http_app())
 
 
 async def application(scope, receive, send):

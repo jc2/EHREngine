@@ -9,6 +9,7 @@ from .tools.insurance import verify_insurance_eligibility as _verify
 from .tools.availability import check_provider_availability as _check
 from .tools.scheduling import schedule_appointment as _schedule
 from .tools.refills import list_patient_prescriptions as _list_rx, request_medication_refill as _refill
+from .tools.billing import estimate_visit_cost as _estimate_cost
 
 mcp = FastMCP(
     "EHREngine",
@@ -53,3 +54,4 @@ mcp.tool()(_traced_async_tool(_check))
 mcp.tool()(_traced_async_tool(_schedule))
 mcp.tool()(_traced_async_tool(_list_rx))
 mcp.tool()(_traced_async_tool(_refill))
+mcp.tool()(_traced_async_tool(_estimate_cost))

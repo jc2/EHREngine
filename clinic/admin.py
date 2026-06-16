@@ -3,6 +3,7 @@ from unfold.admin import ModelAdmin
 
 from .models import (
     Appointment,
+    BillingRule,
     Doctor,
     DoctorSchedule,
     InsurancePayer,
@@ -91,3 +92,11 @@ class RefillRequestAdmin(ModelAdmin):
     list_display_links = ["id"]
     list_filter = ["status"]
     autocomplete_fields = ["prescription"]
+
+
+@admin.register(BillingRule)
+class BillingRuleAdmin(ModelAdmin):
+    list_display = ["id", "insurance_type", "specialty", "fixed_cost"]
+    list_display_links = ["id"]
+    list_filter = ["insurance_type", "specialty"]
+    autocomplete_fields = ["specialty"]

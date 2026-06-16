@@ -156,6 +156,17 @@ UNFOLD = {
                 ],
             },
             {
+                "title": "Billing",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Billing Rules",
+                        "icon": "paid",
+                        "link": reverse_lazy("admin:clinic_billingrule_changelist"),
+                    },
+                ],
+            },
+            {
                 "title": "Authentication",
                 "separator": True,
                 "items": [

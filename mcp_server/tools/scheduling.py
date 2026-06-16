@@ -1,6 +1,8 @@
 from datetime import date as date_type, datetime
 from typing import Any
 
+from mcp_server.auth import enforce_patient_scope
+
 
 def schedule_appointment(
     patient_id: str, doctor_id: str, date: str, time: str
@@ -27,6 +29,10 @@ def schedule_appointment(
           specialty, date, start_time, end_time, and status.
         - error (str): Reason for failure if success is False.
     """
+    auth_error = enforce_patient_scope(patient_id)
+    if auth_error:
+        return auth_error
+
     from django.db import IntegrityError
 
     from clinic.models import Appointment, Doctor, DoctorSchedule

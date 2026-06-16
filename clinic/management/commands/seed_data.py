@@ -4,6 +4,7 @@ from datetime import date, time, timedelta
 from django.core.management.base import BaseCommand
 
 from clinic.models import (
+    BillingRule,
     Doctor,
     DoctorSchedule,
     InsurancePayer,
@@ -81,6 +82,7 @@ class Command(BaseCommand):
         self._seed_patient_insurance()
         self._seed_medications()
         self._seed_prescriptions()
+        self._seed_billing_rules()
         self.stdout.write(self.style.SUCCESS("Seed completed successfully."))
 
     def _seed_specialties(self):
@@ -278,3 +280,27 @@ class Command(BaseCommand):
             if created:
                 count += 1
         self.stdout.write(f"  Seeded {count} prescriptions.")
+
+    def _seed_billing_rules(self):
+        # Tiered cascade lookup for the deterministic billing engine (Epic 3).
+        # (insurance_type, specialty_code, fixed_cost) — None means "any".
+        cardiology = MedicalDepartment.objects.filter(code="CARDIOLOGY").first()
+        general = MedicalDepartment.objects.filter(code="GENERAL_PRACTICE").first()
+
+        rules = [
+            ("HMO", cardiology, "40.00"),  # Tier 1: exact
+            ("PPO", cardiology, "60.00"),  # Tier 1: exact
+            (None, general, "25.00"),      # Tier 2: specialty default
+            (None, None, "50.00"),         # Tier 3: global fallback
+        ]
+
+        count = 0
+        for insurance_type, specialty, fixed_cost in rules:
+            _, created = BillingRule.objects.get_or_create(
+                insurance_type=insurance_type,
+                specialty=specialty,
+                defaults={"fixed_cost": fixed_cost},
+            )
+            if created:
+                count += 1
+        self.stdout.write(f"  Seeded {count} billing rules.")

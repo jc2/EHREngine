@@ -3,6 +3,8 @@ from typing import Any
 
 from django.db import models
 
+from mcp_server.auth import enforce_patient_scope
+
 
 def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, Any]:
     """Verify whether a patient has active insurance coverage with a specific payer.
@@ -27,6 +29,10 @@ def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, An
         - payer (dict): Payer name and ID if eligible.
         - reason (str): Explanation if not eligible.
     """
+    auth_error = enforce_patient_scope(patient_id)
+    if auth_error:
+        return auth_error
+
     from clinic.models import InsurancePayer, PatientInsurance
 
     try:

@@ -1,5 +1,7 @@
 from typing import Any
 
+from mcp_server.auth import enforce_patient_scope
+
 
 def list_patient_prescriptions(patient_id: str) -> dict[str, Any]:
     """List all prescriptions for a patient, including active and expired ones.
@@ -22,6 +24,10 @@ def list_patient_prescriptions(patient_id: str) -> dict[str, Any]:
             expiration_date, is_controlled_substance.
         - error (str): If the patient has no records.
     """
+    auth_error = enforce_patient_scope(patient_id)
+    if auth_error:
+        return auth_error
+
     from clinic.models import PatientInsurance, Prescription
 
     if not PatientInsurance.objects.filter(patient_id=patient_id).exists():
@@ -95,6 +101,10 @@ def request_medication_refill(patient_id: str, prescription_id: str) -> dict[str
         - requires_provider_review (bool): Whether a provider must review.
         - patient_id (str): The patient identifier.
     """
+    auth_error = enforce_patient_scope(patient_id)
+    if auth_error:
+        return auth_error
+
     from datetime import date, timedelta
 
     from django.utils import timezone

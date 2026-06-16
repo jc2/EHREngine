@@ -5,6 +5,7 @@ from .appointment import Appointment, AppointmentStatus
 from .medication import Medication, MedicationForm
 from .prescription import Prescription, PrescriptionStatus
 from .refill_request import RefillRequest, RefillStatus
+from .billing_rule import BillingRule
 
 __all__ = [
     "MedicalDepartment",
@@ -21,4 +22,5 @@ __all__ = [
     "PrescriptionStatus",
     "RefillRequest",
     "RefillStatus",
+    "BillingRule",
 ]

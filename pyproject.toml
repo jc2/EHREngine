@@ -2,7 +2,7 @@
 name = "ehrengine"
 version = "0.1.0"
 description = "EHR/PMS POC with MCP tools for agentic workflows"
-requires-python = ">=3.12"
+requires-python = ">=3.13, <3.14"
 dependencies = [
     "django>=5.1",
     "django-unfold>=0.50.0",
@@ -11,6 +11,13 @@ dependencies = [
     "mcp[cli]>=1.27.0",
     "uvicorn[standard]>=0.32.0",
     "whitenoise>=6.8.0",
+    "logfire[django]>=3.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.8",
 ]
 
 [build-system]
@@ -19,3 +26,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["ehrengine", "clinic", "mcp_server"]
+
+[tool.pytest.ini_options]
+addopts = "--ds=ehrengine.settings.test"
+pythonpath = ["."]

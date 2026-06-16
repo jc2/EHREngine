@@ -1,5 +1,6 @@
 import functools
 
+import logfire
 from asgiref.sync import sync_to_async
 from mcp.server.fastmcp import FastMCP
 
@@ -23,14 +24,24 @@ mcp = FastMCP(
 )
 
 
-def _async_tool(fn):
-    async_fn = sync_to_async(fn)
+def _traced_async_tool(fn):
+    @logfire.instrument("mcp.tool.{fn_name}", extract_args=True)
+    def traced(*args, **kwargs):
+        return fn(*args, **kwargs)
+
+    traced.__name__ = fn.__name__
+    traced.__qualname__ = fn.__qualname__
+    traced.__doc__ = fn.__doc__
+    traced.__annotations__ = fn.__annotations__
+    traced.__module__ = fn.__module__
+
+    async_fn = sync_to_async(traced)
     functools.update_wrapper(async_fn, fn)
     return async_fn
 
 
-mcp.tool()(_async_tool(_payers))
-mcp.tool()(_async_tool(_specialties))
-mcp.tool()(_async_tool(_verify))
-mcp.tool()(_async_tool(_check))
-mcp.tool()(_async_tool(_schedule))
+mcp.tool()(_traced_async_tool(_payers))
+mcp.tool()(_traced_async_tool(_specialties))
+mcp.tool()(_traced_async_tool(_verify))
+mcp.tool()(_traced_async_tool(_check))
+mcp.tool()(_traced_async_tool(_schedule))

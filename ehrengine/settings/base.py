@@ -1,7 +1,11 @@
 import os
 
 import dj_database_url
+import logfire
 from django.urls import reverse_lazy
+
+logfire.configure(service_name="ehrengine")
+logfire.instrument_django()
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIR = os.path.dirname(PROJECT_DIR)

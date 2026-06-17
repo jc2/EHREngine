@@ -35,14 +35,16 @@ def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, An
 
     from clinic.models import InsurancePayer, PatientInsurance
 
-    try:
-        if payer_id.isdigit():
-            payer = InsurancePayer.objects.get(pk=payer_id, is_active=True)
-        else:
-            payer = InsurancePayer.objects.get(
-                code__iexact=payer_id.strip(), is_active=True
-            )
-    except InsurancePayer.DoesNotExist:
+    s = payer_id.strip()
+    if s.isdigit():
+        payer = InsurancePayer.objects.filter(pk=s, is_active=True).first()
+    else:
+        payer = (
+            InsurancePayer.objects.filter(code__iexact=s, is_active=True).first()
+            or InsurancePayer.objects.filter(name__iexact=s, is_active=True).first()
+        )
+
+    if payer is None:
         available = list(
             InsurancePayer.objects.filter(is_active=True).values_list("code", flat=True)
         )

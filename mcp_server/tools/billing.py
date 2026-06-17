@@ -74,6 +74,18 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
                 or MedicalDepartment.objects.filter(name__iexact=s).first()
             )
 
+        if department is None:
+            available = list(
+                MedicalDepartment.objects.filter(is_active=True).values_list("code", flat=True)
+            )
+            return {
+                "success": False,
+                "error": (
+                    f"Specialty '{specialty}' not found. "
+                    f"Available specialties: {', '.join(available)}"
+                ),
+            }
+
     # --- Tiered cascade: most specific match wins ---
     rule = None
     rule_tier = None

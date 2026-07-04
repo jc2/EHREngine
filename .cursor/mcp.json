@@ -1,0 +1,10 @@
+{
+    "mcpServers": {
+        "ehrengine": {
+            "url": "http://127.0.0.1:8010/mcp",
+            "headers": {
+                "X-Patient-Id": "PAT-001"
+            }
+        }
+    }
+}

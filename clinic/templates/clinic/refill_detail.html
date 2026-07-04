@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Refill Request — EHREngine</title>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card-bg: #fff;
+            --border: #dee2e6;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --primary: #0d6efd;
+            --success: #198754;
+            --warning: #ffc107;
+            --danger: #dc3545;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        .subtitle { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        .status.APPROVED { background: #d1e7dd; color: var(--success); }
+        .status.NEEDS_PROVIDER_REVIEW { background: #fff3cd; color: #856404; }
+        .status.DENIED { background: #f8d7da; color: var(--danger); }
+        .status.PENDING { background: #fff3cd; color: #856404; }
+        .status.AUTHORIZED { background: #d1e7dd; color: var(--success); }
+        .status.DISPENSED { background: #cfe2ff; color: var(--primary); }
+        dl { display: grid; grid-template-columns: 160px 1fr; gap: 0.75rem 1rem; }
+        dt { color: var(--text-muted); font-size: 0.9rem; }
+        dd { font-weight: 500; }
+        .reason {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .reason h2 { font-size: 0.95rem; margin-bottom: 0.35rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Refill Request</h1>
+            <p class="subtitle">Reference: {{ refill.public_id }}</p>
+
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">Authorization status</p>
+            {% if refill.status == "DENIED" %}
+            <span class="status DENIED">Denied</span>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">This refill request was not approved.</p>
+            {% elif refill.status == "DISPENSED" %}
+            <span class="status DISPENSED">Dispensed</span>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">This refill has been filled at the pharmacy.</p>
+            {% elif refill.authorization_status == "AUTHORIZED" %}
+            <span class="status AUTHORIZED">Authorized</span>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">Your refill has been approved and is ready to process.</p>
+            {% else %}
+            <span class="status PENDING">Pending authorization</span>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">A provider must review this request before it can be filled.</p>
+            {% endif %}
+
+            <dl>
+                <dt>Patient</dt>
+                <dd>{{ refill.prescription.patient.full_name }} ({{ refill.prescription.patient_id }})</dd>
+
+                <dt>Medication</dt>
+                <dd>{{ refill.prescription.medication.name }} {{ refill.prescription.medication.strength }}</dd>
+
+                <dt>Directions</dt>
+                <dd>{{ refill.prescription.sig }}</dd>
+
+                <dt>Prescriber</dt>
+                <dd>Dr. {{ refill.prescription.prescriber.first_name }} {{ refill.prescription.prescriber.last_name }}</dd>
+
+                <dt>Refills remaining</dt>
+                <dd>{{ refill.prescription.refills_remaining }}</dd>
+
+                <dt>Requested on</dt>
+                <dd>{{ refill.requested_at|date:"M j, Y H:i" }}</dd>
+
+                {% if refill.processed_at %}
+                <dt>Processed on</dt>
+                <dd>{{ refill.processed_at|date:"M j, Y H:i" }}</dd>
+                {% endif %}
+            </dl>
+
+            <div class="reason">
+                <h2>Decision</h2>
+                <p>{{ refill.decision_reason }}</p>
+            </div>
+
+            <p style="margin-top: 1.5rem;"><a href="/" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">&larr; Back to home</a></p>
+        </div>
+    </div>
+</body>
+</html>

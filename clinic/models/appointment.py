@@ -1,6 +1,9 @@
+import uuid
+
 from django.db import models
 
 from .doctor import Doctor, DoctorSchedule
+from .patient import Patient
 
 
 class AppointmentStatus(models.TextChoices):
@@ -9,8 +12,17 @@ class AppointmentStatus(models.TextChoices):
     COMPLETED = "COMPLETED", "Completed"
 
 
+def _appointment_public_id():
+    return uuid.uuid4().hex
+
+
 class Appointment(models.Model):
-    patient_id = models.CharField(max_length=100, db_index=True)
+    public_id = models.CharField(
+        max_length=32, unique=True, default=_appointment_public_id, editable=False
+    )
+    patient = models.ForeignKey(
+        Patient, on_delete=models.PROTECT, related_name="appointments", to_field="code"
+    )
     doctor = models.ForeignKey(
         Doctor, on_delete=models.PROTECT, related_name="appointments"
     )
@@ -23,7 +35,7 @@ class Appointment(models.Model):
         default=AppointmentStatus.SCHEDULED,
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    notes = models.TextField(blank=True, default="")
+    notes = models.TextField()
 
     class Meta:
         ordering = ["schedule_slot__date", "schedule_slot__start_time"]
@@ -34,3 +46,7 @@ class Appointment(models.Model):
             f"{self.patient_id} -> Dr. {self.doctor.last_name} "
             f"@ {slot.date} {slot.start_time.strftime('%H:%M')}"
         )
+
+    @property
+    def view_url(self):
+        return f"/appointments/{self.public_id}/"

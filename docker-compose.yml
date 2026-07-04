@@ -24,7 +24,6 @@ services:
       - .:/app
     command: >
       sh -c "uv sync --no-dev &&
-             uv run python manage.py makemigrations --noinput &&
              uv run python manage.py migrate --noinput &&
              uv run python manage.py collectstatic --noinput &&
              uv run python manage.py seed_data --skip-if-exists &&

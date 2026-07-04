@@ -5,8 +5,11 @@ import pytest
 from clinic.models import (
     Doctor,
     DoctorSchedule,
+    EscalationStatus,
+    HumanEscalation,
     InsurancePayer,
     MedicalDepartment,
+    Patient,
     PatientInsurance,
 )
 
@@ -36,6 +39,28 @@ def bcbs():
 def aetna():
     return InsurancePayer.objects.create(
         name="Aetna", code="AETNA", is_active=True
+    )
+
+
+@pytest.fixture
+def patient_001():
+    return Patient.objects.create(
+        code="PAT-001",
+        first_name="John",
+        last_name="Smith",
+        phone_number="555-0101",
+        identification_number="ID-100001",
+    )
+
+
+@pytest.fixture
+def patient_002():
+    return Patient.objects.create(
+        code="PAT-002",
+        first_name="Maria",
+        last_name="Garcia",
+        phone_number="555-0102",
+        identification_number="ID-100002",
     )
 
 
@@ -80,12 +105,25 @@ def schedule_slot(doctor_wilson, future_date):
 
 
 @pytest.fixture
-def patient_insurance_ppo(bcbs):
+def patient_insurance_ppo(patient_001, bcbs):
     return PatientInsurance.objects.create(
-        patient_id="PAT-001",
+        patient=patient_001,
         payer=bcbs,
         insurance_type="PPO",
         member_id="MBR-123456",
         enrollment_start=date.today() - timedelta(days=180),
         enrollment_end=None,
+    )
+
+
+@pytest.fixture
+def human_escalation_new(patient_001):
+    return HumanEscalation.objects.create(
+        patient=patient_001,
+        reported_name="John Smith",
+        reported_phone="555-0101",
+        reported_identification_number="ID-100001",
+        initial_intent="Schedule cardiology appointment",
+        failure_reason="No available slots in the requested timeframe",
+        status=EscalationStatus.NEW,
     )

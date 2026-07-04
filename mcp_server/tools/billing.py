@@ -1,12 +1,13 @@
 from datetime import date
-from typing import Any
 
 from django.db import models
 
 from mcp_server.auth import enforce_patient_scope
+from mcp_server.schemas.auth_mapping import billing_auth_error
+from mcp_server.schemas.responses import EstimateVisitCostResult
 
 
-def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
+def estimate_visit_cost(patient_id: str, specialty: str) -> EstimateVisitCostResult:
     """Estimate the patient's fixed out-of-pocket cost for a visit to a specialty.
 
     Deterministic engine (no LLM math): the cost is resolved from the BillingRule
@@ -39,7 +40,7 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
     """
     auth_error = enforce_patient_scope(patient_id)
     if auth_error:
-        return auth_error
+        return billing_auth_error(auth_error)
 
     from clinic.models import (
         BillingRule,
@@ -47,7 +48,6 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
         PatientInsurance,
     )
 
-    # --- Resolve the patient's current insurance_type (for Tier 1) ---
     today = date.today()
     policy = (
         PatientInsurance.objects.filter(
@@ -62,7 +62,6 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
     )
     insurance_type = policy.insurance_type if policy else None
 
-    # --- Resolve the specialty department ---
     department = None
     if specialty:
         if specialty.isdigit():
@@ -78,19 +77,17 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
             available = list(
                 MedicalDepartment.objects.filter(is_active=True).values_list("code", flat=True)
             )
-            return {
-                "success": False,
-                "error": (
+            return EstimateVisitCostResult(
+                success=False,
+                error=(
                     f"Specialty '{specialty}' not found. "
                     f"Available specialties: {', '.join(available)}"
                 ),
-            }
+            )
 
-    # --- Tiered cascade: most specific match wins ---
     rule = None
     rule_tier = None
 
-    # Tier 1: exact (insurance_type + specialty)
     if insurance_type and department:
         rule = BillingRule.objects.filter(
             insurance_type=insurance_type, specialty=department
@@ -98,7 +95,6 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
         if rule:
             rule_tier = 1
 
-    # Tier 2: specialty default (insurance-agnostic)
     if rule is None and department:
         rule = BillingRule.objects.filter(
             insurance_type__isnull=True, specialty=department
@@ -106,7 +102,6 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
         if rule:
             rule_tier = 2
 
-    # Tier 3: global fallback
     if rule is None:
         rule = BillingRule.objects.filter(
             insurance_type__isnull=True, specialty__isnull=True
@@ -115,13 +110,13 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
             rule_tier = 3
 
     if rule is None:
-        return {
-            "success": False,
-            "error": (
+        return EstimateVisitCostResult(
+            success=False,
+            error=(
                 "No billing rule matched and no global fallback rule is configured. "
                 "Seed a Tier 3 (insurance_type NULL, specialty NULL) BillingRule."
             ),
-        }
+        )
 
     tier_labels = {
         1: "Exact match (insurance + specialty)",
@@ -129,13 +124,13 @@ def estimate_visit_cost(patient_id: str, specialty: str) -> dict[str, Any]:
         3: "Global fallback",
     }
 
-    return {
-        "success": True,
-        "patient_id": patient_id,
-        "estimated_cost": float(rule.fixed_cost),
-        "currency": "USD",
-        "rule_tier": rule_tier,
-        "rule_tier_label": tier_labels[rule_tier],
-        "insurance_type": insurance_type,
-        "specialty": department.name if department else None,
-    }
+    return EstimateVisitCostResult(
+        success=True,
+        patient_id=patient_id,
+        estimated_cost=float(rule.fixed_cost),
+        currency="USD",
+        rule_tier=rule_tier,
+        rule_tier_label=tier_labels[rule_tier],
+        insurance_type=insurance_type,
+        specialty=department.name if department else None,
+    )

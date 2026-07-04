@@ -1,7 +1,12 @@
-from typing import Any
+from mcp_server.schemas.responses import (
+    ListInsurancePayersResult,
+    ListMedicalSpecialtiesResult,
+    PayerSummary,
+    SpecialtySummary,
+)
 
 
-def list_insurance_payers() -> dict[str, Any]:
+def list_insurance_payers() -> ListInsurancePayersResult:
     """List all active insurance payers in the system.
 
     Use this tool to discover which insurance payers are available before
@@ -12,20 +17,20 @@ def list_insurance_payers() -> dict[str, Any]:
 
     payers = InsurancePayer.objects.filter(is_active=True).order_by("name")
 
-    return {
-        "total": payers.count(),
-        "payers": [
-            {
-                "id": str(p.pk),
-                "code": p.code,
-                "name": p.name,
-            }
+    return ListInsurancePayersResult(
+        total=payers.count(),
+        payers=[
+            PayerSummary(
+                id=str(p.pk),
+                code=p.code,
+                name=p.name,
+            )
             for p in payers
         ],
-    }
+    )
 
 
-def list_medical_specialties() -> dict[str, Any]:
+def list_medical_specialties() -> ListMedicalSpecialtiesResult:
     """List all active medical specialties (departments) in the system.
 
     Use this tool to discover which specialties are available before
@@ -47,15 +52,15 @@ def list_medical_specialties() -> dict[str, Any]:
         .order_by("name")
     )
 
-    return {
-        "total": specialties.count(),
-        "specialties": [
-            {
-                "id": str(s.pk),
-                "code": s.code,
-                "name": s.name,
-                "active_doctors": s.doctor_count,
-            }
+    return ListMedicalSpecialtiesResult(
+        total=specialties.count(),
+        specialties=[
+            SpecialtySummary(
+                id=str(s.pk),
+                code=s.code,
+                name=s.name,
+                active_doctors=s.doctor_count,
+            )
             for s in specialties
         ],
-    }
+    )

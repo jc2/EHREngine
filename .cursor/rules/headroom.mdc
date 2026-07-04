@@ -1,0 +1,11 @@
+---
+description: Forces the Agent to use Headroom MCP to compress long contexts, massive code, JSON structures, and logs before processing them.
+alwaysApply: true
+globs: "*"
+---
+
+## Critical Headroom MCP Instructions
+
+- **Mandatory Compression**: Whenever you are about to read code files exceeding 100 lines, extensive terminal logs, RAG results, or heavy JSON structures, you MUST invoke the `headroom_compress` tool before processing the content.
+- **Editing Workflow (CCR)**: If you need to modify, rewrite, or deeply inspect a code snippet that was collapsed by compression, you MUST utilize the `headroom_retrieve` tool to bring the exact original snippet into your context before applying any changes.
+- Do not ignore these tools if the prompt or historical context becomes dense; your absolute priority is to keep the context clean to prevent saturating your memory limit.

@@ -1,16 +1,19 @@
 import os
 
 import dj_database_url
-import logfire
 from django.urls import reverse_lazy
 
-logfire.configure(service_name="ehrengine")
-logfire.instrument_django()
+if os.environ.get("LOGFIRE_TOKEN"):
+    import logfire
+
+    logfire.configure(service_name="ehrengine")
+    logfire.instrument_django()
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIR = os.path.dirname(PROJECT_DIR)
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "insecure-dev-key-change-in-production")
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8010")
 
 INSTALLED_APPS = [
     "unfold",
@@ -107,6 +110,11 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     {
+                        "title": "Patients",
+                        "icon": "person",
+                        "link": reverse_lazy("admin:clinic_patient_changelist"),
+                    },
+                    {
                         "title": "Doctors",
                         "icon": "group",
                         "link": reverse_lazy("admin:clinic_doctor_changelist"),
@@ -115,6 +123,17 @@ UNFOLD = {
                         "title": "Specialties",
                         "icon": "local_hospital",
                         "link": reverse_lazy("admin:clinic_medicaldepartment_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": "Support",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Human Escalations",
+                        "icon": "support_agent",
+                        "link": reverse_lazy("admin:clinic_humanescalation_changelist"),
                     },
                 ],
             },

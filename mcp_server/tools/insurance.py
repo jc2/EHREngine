@@ -1,12 +1,13 @@
 from datetime import date
-from typing import Any
 
 from django.db import models
 
 from mcp_server.auth import enforce_patient_scope
+from mcp_server.schemas.auth_mapping import verify_auth_error
+from mcp_server.schemas.responses import PayerInfo, VerifyInsuranceEligibilityResult
 
 
-def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, Any]:
+def verify_insurance_eligibility(patient_id: str, payer_id: str) -> VerifyInsuranceEligibilityResult:
     """Verify whether a patient has active insurance coverage with a specific payer.
 
     Use this tool BEFORE scheduling an appointment to confirm the patient's
@@ -31,7 +32,7 @@ def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, An
     """
     auth_error = enforce_patient_scope(patient_id)
     if auth_error:
-        return auth_error
+        return verify_auth_error(auth_error)
 
     from clinic.models import InsurancePayer, PatientInsurance
 
@@ -48,13 +49,13 @@ def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, An
         available = list(
             InsurancePayer.objects.filter(is_active=True).values_list("code", flat=True)
         )
-        return {
-            "eligible": False,
-            "reason": (
+        return VerifyInsuranceEligibilityResult(
+            eligible=False,
+            reason=(
                 f"Payer '{payer_id}' not found or inactive. "
                 f"Available payers: {', '.join(available)}"
             ),
-        }
+        )
 
     today = date.today()
     policy = (
@@ -70,24 +71,24 @@ def verify_insurance_eligibility(patient_id: str, payer_id: str) -> dict[str, An
     )
 
     if not policy:
-        return {
-            "eligible": False,
-            "reason": f"Patient '{patient_id}' has no active insurance with {payer.name}.",
-        }
+        return VerifyInsuranceEligibilityResult(
+            eligible=False,
+            reason=f"Patient '{patient_id}' has no active insurance with {payer.name}.",
+        )
 
-    return {
-        "eligible": True,
-        "patient_id": patient_id,
-        "payer": {"id": payer.pk, "name": payer.name},
-        "insurance_type": policy.insurance_type,
-        "insurance_type_description": (
+    return VerifyInsuranceEligibilityResult(
+        eligible=True,
+        patient_id=patient_id,
+        payer=PayerInfo(id=payer.pk, name=payer.name),
+        insurance_type=policy.insurance_type,
+        insurance_type_description=(
             "HMO - Requires referral from primary care physician for specialists"
             if policy.insurance_type == "HMO"
             else "PPO - Can see specialists directly without referral"
         ),
-        "member_id": policy.member_id,
-        "enrollment_start": policy.enrollment_start.isoformat(),
-        "enrollment_end": (
+        member_id=policy.member_id,
+        enrollment_start=policy.enrollment_start.isoformat(),
+        enrollment_end=(
             policy.enrollment_end.isoformat() if policy.enrollment_end else None
         ),
-    }
+    )

@@ -2,6 +2,8 @@ from datetime import date
 
 from django.db import models
 
+from .patient import Patient
+
 
 class InsuranceType(models.TextChoices):
     HMO = "HMO", "HMO - Health Maintenance Organization"
@@ -22,7 +24,9 @@ class InsurancePayer(models.Model):
 
 
 class PatientInsurance(models.Model):
-    patient_id = models.CharField(max_length=100, db_index=True)
+    patient = models.ForeignKey(
+        Patient, on_delete=models.PROTECT, related_name="insurance_policies", to_field="code"
+    )
     payer = models.ForeignKey(
         InsurancePayer, on_delete=models.PROTECT, related_name="patient_policies"
     )

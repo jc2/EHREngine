@@ -119,6 +119,80 @@
         .legend-dot.available { background: var(--success-light); border: 1px solid var(--success); }
         .legend-dot.booked { background: var(--danger-light); border: 1px solid var(--danger); }
 
+        .patient-portal {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .portal-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+        }
+
+        .portal-card h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .portal-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .portal-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .portal-form input {
+            flex: 1;
+            padding: 0.45rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        .portal-form input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+        }
+
+        .portal-form button {
+            padding: 0.45rem 1rem;
+            border: none;
+            border-radius: 6px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .portal-form button:hover { opacity: 0.92; }
+
+        .messages {
+            list-style: none;
+            margin-bottom: 1rem;
+        }
+
+        .messages li {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: var(--danger-light);
+            color: var(--danger);
+            border: 1px solid #f5c2c7;
+        }
+
         .department {
             background: var(--card-bg);
             border: 1px solid var(--border);
@@ -337,6 +411,41 @@
     </header>
 
     <div class="container">
+        {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <div class="patient-portal">
+            <div class="portal-card">
+                <h2>Check your appointment</h2>
+                <p>Enter the reference code you received when booking (e.g. after scheduling via chat).</p>
+                <form class="portal-form" method="get" action="{% url 'appointment-lookup' %}">
+                    <input type="text" name="code" placeholder="Appointment reference" autocomplete="off" spellcheck="false" required>
+                    <button type="submit">View</button>
+                </form>
+            </div>
+            <div class="portal-card">
+                <h2>Check your refill request</h2>
+                <p>Enter the reference code from your medication refill request.</p>
+                <form class="portal-form" method="get" action="{% url 'refill-lookup' %}">
+                    <input type="text" name="code" placeholder="Refill reference" autocomplete="off" spellcheck="false" required>
+                    <button type="submit">View</button>
+                </form>
+            </div>
+            <div class="portal-card">
+                <h2>Check your escalation case</h2>
+                <p>Enter the reference code from your human escalation request.</p>
+                <form class="portal-form" method="get" action="{% url 'escalation-lookup' %}">
+                    <input type="text" name="code" placeholder="Escalation reference" autocomplete="off" spellcheck="false" required>
+                    <button type="submit">View</button>
+                </form>
+            </div>
+        </div>
+
         <div class="controls">
             <div class="date-nav">
                 <a href="?date={{ prev_date|date:'Y-m-d' }}{% if specialty_filter %}&specialty={{ specialty_filter }}{% endif %}">&larr; Prev</a>

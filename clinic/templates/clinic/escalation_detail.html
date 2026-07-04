@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Human Escalation — EHREngine</title>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card-bg: #fff;
+            --border: #dee2e6;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --primary: #0d6efd;
+            --success: #198754;
+            --warning: #ffc107;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        .subtitle { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        .status.NEW { background: #fff3cd; color: #856404; }
+        .status.RESOLVED { background: #d1e7dd; color: var(--success); }
+        dl { display: grid; grid-template-columns: 160px 1fr; gap: 0.75rem 1rem; }
+        dt { color: var(--text-muted); font-size: 0.9rem; }
+        dd { font-weight: 500; }
+        .detail-block {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .detail-block h2 {
+            font-size: 0.95rem;
+            margin-bottom: 0.35rem;
+            color: var(--text-muted);
+        }
+        .detail-block p { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Human Escalation</h1>
+            <p class="subtitle">Reference: {{ escalation.public_id }}</p>
+            <span class="status {{ escalation.status }}">{{ escalation.get_status_display }}</span>
+
+            <dl>
+                <dt>Reported name</dt>
+                <dd>{{ escalation.reported_name }}</dd>
+
+                <dt>Phone</dt>
+                <dd>{{ escalation.reported_phone }}</dd>
+
+                <dt>ID number</dt>
+                <dd>{{ escalation.reported_identification_number }}</dd>
+
+                {% if escalation.patient %}
+                <dt>Patient record</dt>
+                <dd>{{ escalation.patient.full_name }} ({{ escalation.patient_id }})</dd>
+                {% endif %}
+
+                <dt>Submitted on</dt>
+                <dd>{{ escalation.created_at|date:"M j, Y H:i" }}</dd>
+
+                {% if escalation.resolved_at %}
+                <dt>Resolved on</dt>
+                <dd>{{ escalation.resolved_at|date:"M j, Y H:i" }}</dd>
+                {% endif %}
+            </dl>
+
+            <div class="detail-block">
+                <h2>Initial intent</h2>
+                <p>{{ escalation.initial_intent }}</p>
+            </div>
+
+            <div class="detail-block">
+                <h2>Why the agent could not help</h2>
+                <p>{{ escalation.failure_reason }}</p>
+            </div>
+
+            {% if escalation.agent_notes %}
+            <div class="detail-block">
+                <h2>Additional notes</h2>
+                <p>{{ escalation.agent_notes }}</p>
+            </div>
+            {% endif %}
+
+            <p style="margin-top: 1.5rem;"><a href="/" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">&larr; Back to home</a></p>
+        </div>
+    </div>
+</body>
+</html>

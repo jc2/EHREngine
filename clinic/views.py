@@ -1,14 +1,17 @@
 from datetime import date, time, timedelta
 
+from django.contrib import messages
 from django.http import JsonResponse
-from django.shortcuts import render
-from django.views.decorators.http import require_POST
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
     Appointment,
     Doctor,
     DoctorSchedule,
+    HumanEscalation,
     MedicalDepartment,
+    RefillRequest,
 )
 
 SCHEDULE_START_HOUR = 8
@@ -151,3 +154,70 @@ def schedule_dashboard(request):
         "all_specialties": all_specialties,
         "specialty_filter": specialty_filter,
     })
+
+
+def appointment_detail(request, public_id):
+    appointment = get_object_or_404(
+        Appointment.objects.select_related(
+            "patient", "doctor", "doctor__specialty", "schedule_slot"
+        ),
+        public_id=public_id,
+    )
+    return render(request, "clinic/appointment_detail.html", {"appointment": appointment})
+
+
+def refill_detail(request, public_id):
+    refill = get_object_or_404(
+        RefillRequest.objects.select_related(
+            "prescription",
+            "prescription__medication",
+            "prescription__patient",
+            "prescription__prescriber",
+        ),
+        public_id=public_id,
+    )
+    return render(request, "clinic/refill_detail.html", {"refill": refill})
+
+
+def escalation_detail(request, public_id):
+    escalation = get_object_or_404(
+        HumanEscalation.objects.select_related("patient"),
+        public_id=public_id,
+    )
+    return render(request, "clinic/escalation_detail.html", {"escalation": escalation})
+
+
+@require_GET
+def lookup_appointment(request):
+    public_id = request.GET.get("code", "").strip()
+    if not public_id:
+        messages.error(request, "Enter your appointment reference code.")
+        return redirect("schedule-dashboard")
+    if Appointment.objects.filter(public_id=public_id).exists():
+        return redirect("appointment-detail", public_id=public_id)
+    messages.error(request, f"No appointment found with reference “{public_id}”.")
+    return redirect("schedule-dashboard")
+
+
+@require_GET
+def lookup_refill(request):
+    public_id = request.GET.get("code", "").strip()
+    if not public_id:
+        messages.error(request, "Enter your refill request reference code.")
+        return redirect("schedule-dashboard")
+    if RefillRequest.objects.filter(public_id=public_id).exists():
+        return redirect("refill-detail", public_id=public_id)
+    messages.error(request, f"No refill request found with reference “{public_id}”.")
+    return redirect("schedule-dashboard")
+
+
+@require_GET
+def lookup_escalation(request):
+    public_id = request.GET.get("code", "").strip()
+    if not public_id:
+        messages.error(request, "Enter your escalation reference code.")
+        return redirect("schedule-dashboard")
+    if HumanEscalation.objects.filter(public_id=public_id).exists():
+        return redirect("escalation-detail", public_id=public_id)
+    messages.error(request, f"No escalation found with reference “{public_id}”.")
+    return redirect("schedule-dashboard")

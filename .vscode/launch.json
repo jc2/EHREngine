@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "EHREngine API",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "ehrengine.asgi:application",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8010",
+                "--reload"
+            ],
+            "django": true,
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "ehrengine.settings.dev"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

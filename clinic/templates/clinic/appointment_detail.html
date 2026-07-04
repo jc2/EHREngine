@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Appointment — EHREngine</title>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card-bg: #fff;
+            --border: #dee2e6;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --primary: #0d6efd;
+            --success: #198754;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        .subtitle { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: #d1e7dd;
+            color: var(--success);
+            margin-bottom: 1.5rem;
+        }
+        .status.CANCELLED { background: #f8d7da; color: #dc3545; }
+        .status.COMPLETED { background: #cfe2ff; color: var(--primary); }
+        dl { display: grid; grid-template-columns: 140px 1fr; gap: 0.75rem 1rem; }
+        dt { color: var(--text-muted); font-size: 0.9rem; }
+        dd { font-weight: 500; }
+        .notes {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+        .notes h2 { font-size: 1rem; margin-bottom: 0.5rem; }
+        .notes p { white-space: pre-wrap; color: var(--text); }
+        .back { margin-top: 1.5rem; }
+        .back a { color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+        .back a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Your Appointment</h1>
+            <p class="subtitle">Reference: {{ appointment.public_id }}</p>
+            <span class="status {{ appointment.status }}">{{ appointment.get_status_display }}</span>
+
+            <dl>
+                <dt>Patient</dt>
+                <dd>{{ appointment.patient.full_name }} ({{ appointment.patient_id }})</dd>
+
+                <dt>Doctor</dt>
+                <dd>Dr. {{ appointment.doctor.first_name }} {{ appointment.doctor.last_name }}</dd>
+
+                <dt>Specialty</dt>
+                <dd>{{ appointment.doctor.specialty.name }}</dd>
+
+                <dt>Date</dt>
+                <dd>{{ appointment.schedule_slot.date|date:"l, F j, Y" }}</dd>
+
+                <dt>Time</dt>
+                <dd>{{ appointment.schedule_slot.start_time|time:"H:i" }} – {{ appointment.schedule_slot.end_time|time:"H:i" }}</dd>
+
+                <dt>Booked on</dt>
+                <dd>{{ appointment.created_at|date:"M j, Y H:i" }}</dd>
+            </dl>
+
+            <div class="notes">
+                <h2>Reasons for visit</h2>
+                <p>{{ appointment.notes }}</p>
+            </div>
+
+            <div class="back"><a href="/">&larr; Back to home</a></div>
+        </div>
+    </div>
+</body>
+</html>

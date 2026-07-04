@@ -11,6 +11,8 @@ from mcp_server import auth
 from mcp_server.tools.billing import estimate_visit_cost
 from mcp_server.tools.insurance import verify_insurance_eligibility
 
+from tests.mcp_helpers import mcp_dump
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -25,11 +27,11 @@ def general_practice():
 
 
 @pytest.fixture
-def patient_insurance_hmo(bcbs):
+def patient_insurance_hmo(patient_001, bcbs):
     from clinic.models import PatientInsurance
 
     return PatientInsurance.objects.create(
-        patient_id="PAT-001",
+        patient=patient_001,
         payer=bcbs,
         insurance_type="HMO",
         member_id="MBR-HMO-1",
@@ -69,7 +71,7 @@ def auth_scope():
 class TestBillingCascade:
     def test_tier1_exact_match(self, patient_insurance_hmo, billing_rules, cardiology):
         # HMO patient + Cardiology -> exact rule -> $40.
-        result = estimate_visit_cost("PAT-001", "CARDIOLOGY")
+        result = mcp_dump(estimate_visit_cost("PAT-001", "CARDIOLOGY"))
 
         assert result["success"] is True
         assert result["estimated_cost"] == 40.0
@@ -78,7 +80,7 @@ class TestBillingCascade:
 
     def test_tier2_specialty_default(self, patient_insurance_hmo, billing_rules):
         # No HMO+General rule exists -> falls to the specialty default ($25).
-        result = estimate_visit_cost("PAT-001", "General Practice")
+        result = mcp_dump(estimate_visit_cost("PAT-001", "General Practice"))
 
         assert result["success"] is True
         assert result["estimated_cost"] == 25.0
@@ -86,7 +88,7 @@ class TestBillingCascade:
 
     def test_tier3_global_fallback(self, patient_insurance_hmo, billing_rules, dermatology):
         # Dermatology has no rule at all -> global fallback ($50).
-        result = estimate_visit_cost("PAT-001", "DERMATOLOGY")
+        result = mcp_dump(estimate_visit_cost("PAT-001", "DERMATOLOGY"))
 
         assert result["success"] is True
         assert result["estimated_cost"] == 50.0
@@ -94,7 +96,7 @@ class TestBillingCascade:
 
     def test_no_insurance_uses_specialty_or_global(self, billing_rules):
         # Patient with no insurance on file can't match Tier 1, but still resolves.
-        result = estimate_visit_cost("PAT-404", "General Practice")
+        result = mcp_dump(estimate_visit_cost("PAT-404", "General Practice"))
 
         assert result["success"] is True
         assert result["estimated_cost"] == 25.0
@@ -109,7 +111,7 @@ class TestCrossPatientEnforcement:
     def test_foreign_patient_rejected(self, auth_scope, patient_insurance_ppo, bcbs):
         # Session authenticated as PAT-001; tool asked about PAT-002 -> denied.
         auth_scope("PAT-001")
-        result = verify_insurance_eligibility("PAT-002", "BCBS")
+        result = mcp_dump(verify_insurance_eligibility("PAT-002", "BCBS"))
 
         assert result["success"] is False
         assert result["error_code"] == "cross_patient_denied"
@@ -118,20 +120,20 @@ class TestCrossPatientEnforcement:
 
     def test_matching_patient_allowed(self, auth_scope, patient_insurance_ppo, bcbs):
         auth_scope("PAT-001")
-        result = verify_insurance_eligibility("PAT-001", "BCBS")
+        result = mcp_dump(verify_insurance_eligibility("PAT-001", "BCBS"))
 
         assert result["eligible"] is True
         assert result["insurance_type"] == "PPO"
 
     def test_no_header_not_enforced(self, patient_insurance_ppo, bcbs):
         # Direct call (no trusted header) is allowed — enforcement is header-driven.
-        result = verify_insurance_eligibility("PAT-001", "BCBS")
+        result = mcp_dump(verify_insurance_eligibility("PAT-001", "BCBS"))
 
         assert result["eligible"] is True
 
     def test_billing_cross_patient_rejected(self, auth_scope, billing_rules):
         auth_scope("PAT-001")
-        result = estimate_visit_cost("PAT-002", "CARDIOLOGY")
+        result = mcp_dump(estimate_visit_cost("PAT-002", "CARDIOLOGY"))
 
         assert result["success"] is False
         assert result["error_code"] == "cross_patient_denied"

@@ -10,6 +10,7 @@ from clinic.models import (
     InsurancePayer,
     MedicalDepartment,
     Medication,
+    Patient,
     PatientInsurance,
     Prescription,
 )
@@ -59,6 +60,19 @@ SCHEDULE_START_HOUR = 8
 SCHEDULE_END_HOUR = 12
 SLOT_MINUTES = 30
 
+PATIENTS = [
+    ("PAT-001", "John", "Smith", "555-0101", "ID-100001"),
+    ("PAT-002", "Maria", "Garcia", "555-0102", "ID-100002"),
+    ("PAT-003", "Robert", "Johnson", "555-0103", "ID-100003"),
+    ("PAT-004", "Emily", "Davis", "555-0104", "ID-100004"),
+    ("PAT-005", "Michael", "Wilson", "555-0105", "ID-100005"),
+    ("PAT-006", "Sarah", "Martinez", "555-0106", "ID-100006"),
+    ("PAT-007", "David", "Anderson", "555-0107", "ID-100007"),
+    ("PAT-008", "Jessica", "Taylor", "555-0108", "ID-100008"),
+    ("PAT-009", "Christopher", "Thomas", "555-0109", "ID-100009"),
+    ("PAT-010", "Amanda", "Moore", "555-0110", "ID-100010"),
+]
+
 
 class Command(BaseCommand):
     help = "Seed the database with sample EHR data"
@@ -79,6 +93,7 @@ class Command(BaseCommand):
         self._seed_payers()
         self._seed_doctors()
         self._seed_schedules()
+        self._seed_patients()
         self._seed_patient_insurance()
         self._seed_medications()
         self._seed_prescriptions()
@@ -143,6 +158,22 @@ class Command(BaseCommand):
 
         self.stdout.write(f"  Seeded {count} schedule slots.")
 
+    def _seed_patients(self):
+        count = 0
+        for code, first, last, phone, id_num in PATIENTS:
+            _, created = Patient.objects.get_or_create(
+                code=code,
+                defaults={
+                    "first_name": first,
+                    "last_name": last,
+                    "phone_number": phone,
+                    "identification_number": id_num,
+                },
+            )
+            if created:
+                count += 1
+        self.stdout.write(f"  Seeded {count} patients.")
+
     def _seed_patient_insurance(self):
         payers = list(InsurancePayer.objects.all())
         today = date.today()
@@ -150,7 +181,7 @@ class Command(BaseCommand):
         count = 0
 
         for i in range(1, 11):
-            patient_id = f"PAT-{i:03d}"
+            patient_code = f"PAT-{i:03d}"
             num_policies = random.choice([1, 1, 1, 2])
 
             for _ in range(num_policies):
@@ -164,7 +195,7 @@ class Command(BaseCommand):
                     end = today - timedelta(days=random.randint(10, 90))
 
                 _, created = PatientInsurance.objects.get_or_create(
-                    patient_id=patient_id,
+                    patient_id=patient_code,
                     payer=payer,
                     defaults={
                         "insurance_type": random.choice(types),
@@ -195,7 +226,9 @@ class Command(BaseCommand):
 
     def _seed_prescriptions(self):
         today = date.today()
-        prescriber = Doctor.objects.filter(is_active=True).first()
+        gp = Doctor.objects.filter(specialty__code="GENERAL_PRACTICE", is_active=True).first()
+        cardio = Doctor.objects.filter(specialty__code="CARDIOLOGY", is_active=True).first()
+        prescriber = gp or Doctor.objects.filter(is_active=True).first()
         if not prescriber:
             self.stdout.write(self.style.WARNING("  No active doctor found; skipping prescriptions."))
             return
@@ -206,6 +239,7 @@ class Command(BaseCommand):
         atorvastatin = Medication.objects.get(name="Atorvastatin", strength="20 mg")
 
         prescriptions = [
+            # PAT-001 — full refill workflow demo set
             {
                 "patient_id": "PAT-001",
                 "medication": lisinopril,
@@ -258,6 +292,156 @@ class Command(BaseCommand):
                 "expiration_date": today - timedelta(days=35),
                 "pharmacy": "CVS Pharmacy #1234",
             },
+            # PAT-002 — hypertension, ready to refill
+            {
+                "patient_id": "PAT-002",
+                "medication": lisinopril,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth every morning",
+                "quantity": 30,
+                "refills_authorized": 5,
+                "refills_remaining": 4,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=45),
+                "expiration_date": today + timedelta(days=320),
+                "pharmacy": "Walgreens #2201",
+            },
+            {
+                "patient_id": "PAT-002",
+                "medication": atorvastatin,
+                "prescriber": cardio or prescriber,
+                "sig": "1 tablet by mouth at bedtime",
+                "quantity": 30,
+                "refills_authorized": 3,
+                "refills_remaining": 2,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=60),
+                "expiration_date": today + timedelta(days=305),
+                "pharmacy": "Walgreens #2201",
+            },
+            # PAT-003 — diabetes management
+            {
+                "patient_id": "PAT-003",
+                "medication": metformin,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth twice daily",
+                "quantity": 60,
+                "refills_authorized": 6,
+                "refills_remaining": 5,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=20),
+                "expiration_date": today + timedelta(days=345),
+                "pharmacy": "CVS Pharmacy #3300",
+            },
+            # PAT-004 — no refills left (needs provider review)
+            {
+                "patient_id": "PAT-004",
+                "medication": lisinopril,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth daily",
+                "quantity": 30,
+                "refills_authorized": 2,
+                "refills_remaining": 0,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=120),
+                "expiration_date": today + timedelta(days=245),
+                "pharmacy": "Rite Aid #4412",
+            },
+            {
+                "patient_id": "PAT-004",
+                "medication": metformin,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth twice daily with meals",
+                "quantity": 60,
+                "refills_authorized": 3,
+                "refills_remaining": 1,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=40),
+                "expiration_date": today + timedelta(days=325),
+                "pharmacy": "Rite Aid #4412",
+            },
+            # PAT-005 — controlled substance
+            {
+                "patient_id": "PAT-005",
+                "medication": alprazolam,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth as needed, max 2 per day",
+                "quantity": 30,
+                "refills_authorized": 1,
+                "refills_remaining": 1,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=10),
+                "expiration_date": today + timedelta(days=355),
+                "pharmacy": "CVS Pharmacy #5501",
+            },
+            # PAT-006 — expired prescription
+            {
+                "patient_id": "PAT-006",
+                "medication": atorvastatin,
+                "prescriber": cardio or prescriber,
+                "sig": "1 tablet by mouth nightly",
+                "quantity": 30,
+                "refills_authorized": 3,
+                "refills_remaining": 2,
+                "status": "EXPIRED",
+                "date_written": today - timedelta(days=380),
+                "expiration_date": today - timedelta(days=15),
+                "pharmacy": "Walgreens #6600",
+            },
+            # PAT-007 — cholesterol + blood pressure
+            {
+                "patient_id": "PAT-007",
+                "medication": lisinopril,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth daily",
+                "quantity": 30,
+                "refills_authorized": 4,
+                "refills_remaining": 3,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=25),
+                "expiration_date": today + timedelta(days=340),
+                "pharmacy": "CVS Pharmacy #7702",
+            },
+            {
+                "patient_id": "PAT-007",
+                "medication": atorvastatin,
+                "prescriber": cardio or prescriber,
+                "sig": "1 tablet by mouth at bedtime",
+                "quantity": 30,
+                "refills_authorized": 4,
+                "refills_remaining": 4,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=25),
+                "expiration_date": today + timedelta(days=340),
+                "pharmacy": "CVS Pharmacy #7702",
+            },
+            # PAT-008 — discontinued medication
+            {
+                "patient_id": "PAT-008",
+                "medication": metformin,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth twice daily",
+                "quantity": 60,
+                "refills_authorized": 3,
+                "refills_remaining": 2,
+                "status": "DISCONTINUED",
+                "date_written": today - timedelta(days=200),
+                "expiration_date": today + timedelta(days=165),
+                "pharmacy": "Walgreens #8801",
+            },
+            {
+                "patient_id": "PAT-008",
+                "medication": lisinopril,
+                "prescriber": prescriber,
+                "sig": "1 tablet by mouth daily",
+                "quantity": 30,
+                "refills_authorized": 5,
+                "refills_remaining": 5,
+                "status": "ACTIVE",
+                "date_written": today - timedelta(days=14),
+                "expiration_date": today + timedelta(days=351),
+                "pharmacy": "Walgreens #8801",
+            },
         ]
 
         count = 0
@@ -270,7 +454,7 @@ class Command(BaseCommand):
                     "sig": rx["sig"],
                     "quantity": rx["quantity"],
                     "refills_authorized": rx["refills_authorized"],
-                    "refills_remaining": rx["refills_remaining"],
+                    "refills_remaining": rx["refills_authorized"],
                     "status": rx["status"],
                     "date_written": rx["date_written"],
                     "expiration_date": rx["expiration_date"],

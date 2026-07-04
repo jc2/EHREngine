@@ -20,7 +20,8 @@ is not enforced — only an explicit, MISMATCHING header is rejected.
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Any
+
+from mcp_server.schemas.responses import AuthScopeError
 
 _current_patient_id: ContextVar[str | None] = ContextVar(
     "current_patient_id", default=None
@@ -58,24 +59,21 @@ def get_authenticated_patient_id() -> str | None:
     return _current_patient_id.get()
 
 
-def enforce_patient_scope(patient_id: str) -> dict[str, Any] | None:
+def enforce_patient_scope(patient_id: str) -> AuthScopeError | None:
     """Assert a tool's patient_id argument matches the authenticated identity.
 
     Returns None when access is allowed (matching header, or no header at all —
-    e.g. direct/test invocation). Returns a structured authorization error dict
-    when a header is present and the requested patient_id does not match it.
+    e.g. direct/test invocation). Returns a structured authorization error when
+    a header is present and the requested patient_id does not match it.
     """
     authenticated = _current_patient_id.get()
     if authenticated is None:
         return None
     if patient_id != authenticated:
-        return {
-            "success": False,
-            "eligible": False,
-            "error": (
+        return AuthScopeError(
+            error=(
                 "Authorization error: this session is scoped to patient "
                 f"'{authenticated}' and may not access data for '{patient_id}'."
             ),
-            "error_code": "cross_patient_denied",
-        }
+        )
     return None

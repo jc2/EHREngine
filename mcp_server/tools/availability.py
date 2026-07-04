@@ -1,10 +1,11 @@
 from datetime import date as date_type
-from typing import Any
+
+from mcp_server.schemas.responses import AvailableSlot, CheckProviderAvailabilityResult
 
 
 def check_provider_availability(
     medical_specialty: str, date: str
-) -> dict[str, Any]:
+) -> CheckProviderAvailabilityResult:
     """Check available appointment slots for all doctors in a medical specialty on a given date.
 
     Use this tool to find open 30-minute time slots. Each doctor works from
@@ -39,27 +40,27 @@ def check_provider_availability(
         available_codes = list(
             MedicalDepartment.objects.filter(is_active=True).values_list("code", flat=True)
         )
-        return {
-            "specialty": medical_specialty,
-            "date": date,
-            "total_available": 0,
-            "available_slots": [],
-            "error": (
+        return CheckProviderAvailabilityResult(
+            specialty=medical_specialty,
+            date=date,
+            total_available=0,
+            available_slots=[],
+            error=(
                 f"Specialty '{medical_specialty}' not found. "
                 f"Available: {', '.join(available_codes)}"
             ),
-        }
+        )
 
     try:
         check_date = date_type.fromisoformat(date)
     except ValueError:
-        return {
-            "specialty": dept.code,
-            "date": date,
-            "total_available": 0,
-            "available_slots": [],
-            "error": f"Invalid date format '{date}'. Use YYYY-MM-DD.",
-        }
+        return CheckProviderAvailabilityResult(
+            specialty=dept.code,
+            date=date,
+            total_available=0,
+            available_slots=[],
+            error=f"Invalid date format '{date}'. Use YYYY-MM-DD.",
+        )
 
     open_slots = (
         DoctorSchedule.objects.filter(
@@ -73,20 +74,20 @@ def check_provider_availability(
     )
 
     available = [
-        {
-            "doctor_id": str(slot.doctor.pk),
-            "doctor_name": f"Dr. {slot.doctor.first_name} {slot.doctor.last_name}",
-            "specialty": slot.doctor.specialty.name,
-            "date": slot.date.isoformat(),
-            "start_time": slot.start_time.strftime("%H:%M"),
-            "end_time": slot.end_time.strftime("%H:%M"),
-        }
+        AvailableSlot(
+            doctor_id=str(slot.doctor.pk),
+            doctor_name=f"Dr. {slot.doctor.first_name} {slot.doctor.last_name}",
+            specialty=slot.doctor.specialty.name,
+            date=slot.date.isoformat(),
+            start_time=slot.start_time.strftime("%H:%M"),
+            end_time=slot.end_time.strftime("%H:%M"),
+        )
         for slot in open_slots
     ]
 
-    return {
-        "specialty": dept.code,
-        "date": check_date.isoformat(),
-        "total_available": len(available),
-        "available_slots": available,
-    }
+    return CheckProviderAvailabilityResult(
+        specialty=dept.code,
+        date=check_date.isoformat(),
+        total_available=len(available),
+        available_slots=available,
+    )

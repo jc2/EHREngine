@@ -1,10 +1,10 @@
 """Verify MCP tools expose structured outputSchema metadata."""
 
-from mcp_server.server import mcp
+from mcp_server.server import all_mcp
 
 
 def _tool_output_schema(tool_name: str) -> dict | None:
-    tool = mcp._tool_manager._tools[tool_name]
+    tool = all_mcp._tool_manager._tools[tool_name]
     return tool.output_schema
 
 

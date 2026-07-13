@@ -110,6 +110,11 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     {
+                        "title": "Patient Overview",
+                        "icon": "clinical_notes",
+                        "link": reverse_lazy("admin:clinic_patient_overview"),
+                    },
+                    {
                         "title": "Patients",
                         "icon": "person",
                         "link": reverse_lazy("admin:clinic_patient_changelist"),

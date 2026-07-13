@@ -1,0 +1,260 @@
+{% extends "unfold/layouts/base_simple.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="font-semibold text-xl text-font-important-light dark:text-font-important-dark">
+        Patient Overview
+    </h1>
+    <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark mt-1">
+        Select a patient to see everything associated with them in one place.
+    </p>
+</div>
+
+{# ---- Patient selector ---- #}
+<form method="get" class="mb-8 flex flex-wrap items-end gap-3">
+    <div class="flex flex-col gap-1">
+        <label for="patient-select"
+               class="text-[11px] font-semibold uppercase text-font-subtle-light dark:text-font-subtle-dark">
+            Patient
+        </label>
+        <select id="patient-select" name="patient" onchange="this.form.submit()"
+                class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 text-font-default-light dark:text-font-default-dark rounded-default px-3 py-2 text-sm min-w-[340px] focus:outline-none focus:ring-1 focus:ring-primary-600">
+            <option value="">— Select a patient —</option>
+            {% for p in patients %}
+                <option value="{{ p.pk }}" {% if p.pk == selected_code %}selected{% endif %}>
+                    {{ p.code }} — {{ p.first_name }} {{ p.last_name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <noscript>
+        <button type="submit"
+                class="rounded-default px-3 py-2 text-sm font-medium bg-primary-600 text-white">
+            Show
+        </button>
+    </noscript>
+</form>
+
+{% if selected_code and not patient %}
+    <div class="rounded-default border border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 px-4 py-3 text-sm">
+        No patient found for “{{ selected_code }}”.
+    </div>
+{% endif %}
+
+{% if patient %}
+    {# ---- Patient data card with copy + clear-all ---- #}
+    <div class="bg-white dark:bg-base-900 border border-base-200 dark:border-base-800 rounded-default shadow-xs p-6 mb-6">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <h2 class="font-semibold text-lg text-font-important-light dark:text-font-important-dark">
+                    {{ patient.full_name }}
+                </h2>
+                <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 mt-3 text-sm">
+                    <dt class="text-font-subtle-light dark:text-font-subtle-dark">Patient ID</dt>
+                    <dd class="text-font-default-light dark:text-font-default-dark font-medium">{{ patient.code }}</dd>
+
+                    <dt class="text-font-subtle-light dark:text-font-subtle-dark">ID number</dt>
+                    <dd class="text-font-default-light dark:text-font-default-dark font-medium">{{ patient.identification_number }}</dd>
+
+                    <dt class="text-font-subtle-light dark:text-font-subtle-dark">Phone</dt>
+                    <dd class="text-font-default-light dark:text-font-default-dark font-medium">{{ patient.phone_number }}</dd>
+
+                    <dt class="text-font-subtle-light dark:text-font-subtle-dark">Registered</dt>
+                    <dd class="text-font-default-light dark:text-font-default-dark font-medium">{{ patient.created_at|date:"M j, Y H:i" }}</dd>
+                </dl>
+            </div>
+
+            <div class="flex flex-col gap-2 items-stretch">
+                <button type="button"
+                        id="copy-patient-btn"
+                        data-name="{{ patient.full_name }}"
+                        data-code="{{ patient.code }}"
+                        data-idnum="{{ patient.identification_number }}"
+                        data-phone="{{ patient.phone_number }}"
+                        class="inline-flex items-center justify-center gap-1 rounded-default px-4 py-2 text-sm font-medium border border-base-200 dark:border-base-700 bg-white dark:bg-transparent text-font-important-light dark:text-font-important-dark shadow-xs hover:bg-base-100/80 dark:hover:bg-base-800/80 cursor-pointer">
+                    <span class="material-symbols-outlined text-base -ml-0.5">content_copy</span>
+                    <span data-label>Copy patient data</span>
+                </button>
+
+                <form method="post" action="{{ clear_url }}"
+                      onsubmit="return confirm('Delete ALL appointments, refill requests and escalations for {{ patient.full_name|escapejs }}? This cannot be undone.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="patient" value="{{ patient.code }}">
+                    <button type="submit"
+                            class="w-full inline-flex items-center justify-center gap-1 rounded-default px-4 py-2 text-sm font-medium border border-red-600 bg-red-600 text-white hover:bg-red-600/80 cursor-pointer">
+                        <span class="material-symbols-outlined text-base -ml-0.5">delete_sweep</span>
+                        Clear all
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# ---- Summary sections ---- #}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {# Appointments #}
+        <div class="bg-white dark:bg-base-900 border border-base-200 dark:border-base-800 rounded-default shadow-xs flex flex-col">
+            <div class="flex items-center justify-between border-b border-base-200 dark:border-base-800 px-5 py-4">
+                <h3 class="font-semibold text-[15px] text-font-important-light dark:text-font-important-dark flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">calendar_month</span>
+                    Appointments
+                </h3>
+                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-6 leading-6 px-2 bg-base-500/8 text-base-700 dark:bg-base-500/20 dark:text-base-200">
+                    {{ appointment_count }}
+                </span>
+            </div>
+            <div class="p-3 grow">
+                {% for a in appointments %}
+                    <a href="{% url 'admin:clinic_appointment_change' a.pk %}"
+                       class="block rounded-default px-3 py-2 hover:bg-base-100/80 dark:hover:bg-base-800/80">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-sm font-medium text-font-default-light dark:text-font-default-dark">
+                                Dr. {{ a.doctor.last_name }}
+                            </span>
+                            {% if a.status == "SCHEDULED" %}
+                                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-5 leading-5 px-1.5 bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">{{ a.get_status_display }}</span>
+                            {% elif a.status == "COMPLETED" %}
+                                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-5 leading-5 px-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">{{ a.get_status_display }}</span>
+                            {% else %}
+                                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-5 leading-5 px-1.5 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400">{{ a.get_status_display }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-font-subtle-light dark:text-font-subtle-dark mt-0.5">
+                            {{ a.schedule_slot.date|date:"M j, Y" }} · {{ a.schedule_slot.start_time|time:"H:i" }}
+                            {% if a.doctor.specialty %}· {{ a.doctor.specialty.name }}{% endif %}
+                        </div>
+                    </a>
+                {% empty %}
+                    <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark px-3 py-2">No appointments.</p>
+                {% endfor %}
+            </div>
+            {% if appointment_count %}
+                <div class="border-t border-base-200 dark:border-base-800 px-5 py-2">
+                    <a href="{% url 'admin:clinic_appointment_changelist' %}?q={{ patient.code }}"
+                       class="text-xs font-medium text-primary-600 dark:text-primary-500 hover:underline">
+                        View all in admin →
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Refill requests #}
+        <div class="bg-white dark:bg-base-900 border border-base-200 dark:border-base-800 rounded-default shadow-xs flex flex-col">
+            <div class="flex items-center justify-between border-b border-base-200 dark:border-base-800 px-5 py-4">
+                <h3 class="font-semibold text-[15px] text-font-important-light dark:text-font-important-dark flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">replay</span>
+                    Refill Requests
+                </h3>
+                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-6 leading-6 px-2 bg-base-500/8 text-base-700 dark:bg-base-500/20 dark:text-base-200">
+                    {{ refill_count }}
+                </span>
+            </div>
+            <div class="p-3 grow">
+                {% for r in refills %}
+                    <a href="{% url 'admin:clinic_refillrequest_change' r.pk %}"
+                       class="block rounded-default px-3 py-2 hover:bg-base-100/80 dark:hover:bg-base-800/80">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-sm font-medium text-font-default-light dark:text-font-default-dark">
+                                {{ r.prescription.medication.name }}
+                            </span>
+                            {% if r.status == "APPROVED" or r.status == "DISPENSED" %}
+                                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-5 leading-5 px-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">{{ r.get_status_display }}</span>
+                            {% elif r.status == "DENIED" %}
+                                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-5 leading-5 px-1.5 bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400">{{ r.get_status_display }}</span>
+                            {% else %}
+                                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-5 leading-5 px-1.5 bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">{{ r.get_status_display }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-font-subtle-light dark:text-font-subtle-dark mt-0.5">
+                            Requested {{ r.requested_at|date:"M j, Y" }} · {{ r.get_authorization_status_display }}
+                        </div>
+                    </a>
+                {% empty %}
+                    <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark px-3 py-2">No refill requests.</p>
+                {% endfor %}
+            </div>
+            {% if refill_count %}
+                <div class="border-t border-base-200 dark:border-base-800 px-5 py-2">
+                    <a href="{% url 'admin:clinic_refillrequest_changelist' %}?q={{ patient.code }}"
+                       class="text-xs font-medium text-primary-600 dark:text-primary-500 hover:underline">
+                        View all in admin →
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Human escalations #}
+        <div class="bg-white dark:bg-base-900 border border-base-200 dark:border-base-800 rounded-default shadow-xs flex flex-col">
+            <div class="flex items-center justify-between border-b border-base-200 dark:border-base-800 px-5 py-4">
+                <h3 class="font-semibold text-[15px] text-font-important-light dark:text-font-important-dark flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">support_agent</span>
+                    Human Escalations
+                </h3>
+                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-6 leading-6 px-2 bg-base-500/8 text-base-700 dark:bg-base-500/20 dark:text-base-200">
+                    {{ escalation_count }}
+                </span>
+            </div>
+            <div class="p-3 grow">
+                {% for e in escalations %}
+                    <a href="{% url 'admin:clinic_humanescalation_change' e.pk %}"
+                       class="block rounded-default px-3 py-2 hover:bg-base-100/80 dark:hover:bg-base-800/80">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-sm font-medium text-font-default-light dark:text-font-default-dark">
+                                {{ e.reported_name|default:"Escalation" }}
+                            </span>
+                            {% if e.status == "RESOLVED" %}
+                                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-5 leading-5 px-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">{{ e.get_status_display }}</span>
+                            {% else %}
+                                <span class="inline-block font-semibold rounded-default text-[11px] uppercase h-5 leading-5 px-1.5 bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">{{ e.get_status_display }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-font-subtle-light dark:text-font-subtle-dark mt-0.5">
+                            {{ e.created_at|date:"M j, Y" }} · {{ e.initial_intent|truncatechars:48 }}
+                        </div>
+                    </a>
+                {% empty %}
+                    <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark px-3 py-2">No escalations.</p>
+                {% endfor %}
+            </div>
+            {% if escalation_count %}
+                <div class="border-t border-base-200 dark:border-base-800 px-5 py-2">
+                    <a href="{% url 'admin:clinic_humanescalation_changelist' %}?q={{ patient.code }}"
+                       class="text-xs font-medium text-primary-600 dark:text-primary-500 hover:underline">
+                        View all in admin →
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var btn = document.getElementById("copy-patient-btn");
+            if (!btn) return;
+            btn.addEventListener("click", function () {
+                var text = [
+                    "Name: " + btn.dataset.name,
+                    "Patient ID: " + btn.dataset.code,
+                    "ID number: " + btn.dataset.idnum,
+                    "Phone: " + btn.dataset.phone,
+                ].join("\n");
+                var label = btn.querySelector("[data-label]");
+                var done = function () {
+                    if (!label) return;
+                    var original = label.textContent;
+                    label.textContent = "Copied!";
+                    setTimeout(function () { label.textContent = original; }, 1500);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(done, function () { window.prompt("Copy patient data:", text); });
+                } else {
+                    window.prompt("Copy patient data:", text);
+                }
+            });
+        })();
+    </script>
+{% endif %}
+{% endblock %}

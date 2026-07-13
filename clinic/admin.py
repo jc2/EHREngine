@@ -1,6 +1,9 @@
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import path, reverse
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 
@@ -25,6 +28,101 @@ class PatientAdmin(ModelAdmin):
     list_display = ["code", "first_name", "last_name", "phone_number", "identification_number", "created_at"]
     list_display_links = ["code"]
     search_fields = ["code", "first_name", "last_name", "phone_number", "identification_number"]
+
+    def get_urls(self):
+        # Custom URLs must come first so "overview/" is not swallowed by the
+        # default "<path:object_id>/" change view (Patient PK is a CharField).
+        custom_urls = [
+            path(
+                "overview/",
+                self.admin_site.admin_view(self.overview_view),
+                name="clinic_patient_overview",
+            ),
+            path(
+                "overview/clear/",
+                self.admin_site.admin_view(self.overview_clear_view),
+                name="clinic_patient_overview_clear",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def _overview_context(self, request, patient):
+        appointments = (
+            patient.appointments.select_related(
+                "doctor", "doctor__specialty", "schedule_slot"
+            )
+        )
+        escalations = patient.escalations.all()
+        refills = (
+            RefillRequest.objects.filter(prescription__patient=patient)
+            .select_related("prescription", "prescription__medication")
+        )
+        return {
+            "patient": patient,
+            "appointments": appointments,
+            "escalations": escalations,
+            "refills": refills,
+            "appointment_count": appointments.count(),
+            "escalation_count": escalations.count(),
+            "refill_count": refills.count(),
+        }
+
+    def overview_view(self, request):
+        request.current_app = self.admin_site.name
+        selected_code = (request.GET.get("patient") or "").strip()
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Patient Overview",
+            "opts": self.model._meta,
+            "patients": Patient.objects.all(),
+            "selected_code": selected_code,
+            "clear_url": reverse("admin:clinic_patient_overview_clear"),
+        }
+
+        patient = None
+        if selected_code:
+            patient = Patient.objects.filter(pk=selected_code).first()
+
+        if patient is not None:
+            context.update(self._overview_context(request, patient))
+
+        return render(request, "admin/clinic/patient_overview.html", context)
+
+    def overview_clear_view(self, request):
+        overview_url = reverse("admin:clinic_patient_overview")
+        if request.method != "POST":
+            return redirect(overview_url)
+
+        code = (request.POST.get("patient") or "").strip()
+        patient = get_object_or_404(Patient, pk=code)
+
+        with transaction.atomic():
+            refills = RefillRequest.objects.filter(prescription__patient=patient)
+            escalations = patient.escalations.all()
+            appointments = patient.appointments.all()
+
+            refill_count = refills.count()
+            escalation_count = escalations.count()
+            appointment_count = appointments.count()
+
+            # Refill requests reference prescriptions; delete them before the
+            # rest. Appointments and escalations hold the FK to the patient, so
+            # deleting the child rows themselves is fine despite on_delete=PROTECT.
+            refills.delete()
+            appointments.delete()
+            escalations.delete()
+
+        self.message_user(
+            request,
+            (
+                f"Cleared {appointment_count} appointment(s), "
+                f"{refill_count} refill request(s) and "
+                f"{escalation_count} escalation(s) for {patient.full_name}."
+            ),
+            level=messages.SUCCESS,
+        )
+        return redirect(f"{overview_url}?patient={patient.pk}")
 
 
 @admin.register(MedicalDepartment)
